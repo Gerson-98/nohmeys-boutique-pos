@@ -27,7 +27,31 @@ module.exports = {
       },
     },
     extend: {
+      fontFamily: {
+        playfair: ['var(--font-playfair)', 'Georgia', 'serif'],
+        mono: ['var(--font-jetbrains)', 'Courier New', 'monospace'],
+      },
       colors: {
+        // Nohemy's Boutique
+        blush: {
+          DEFAULT: '#F2C4CE',
+          light: '#F8E1E7',
+          dark: '#E8A0B0',
+        },
+        gold: {
+          DEFAULT: '#C9A84C',
+          light: '#E8D5A3',
+        },
+        boutique: {
+          white: '#FAFAFA',
+          'gray-soft': '#F5F5F5',
+          'gray-mid': '#9E9E9E',
+          dark: '#2C2C2C',
+          success: '#6DBF94',
+          warning: '#F5C842',
+          danger: '#E57373',
+          info: '#7EC8E3',
+        },
         chartbody: '#0F0F0F',
         bodydark1: '#DEE4EE',
         body: '#64748B',

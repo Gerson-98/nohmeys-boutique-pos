@@ -2,6 +2,52 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   NOHEMY'S BOUTIQUE — Variables CSS
+   ============================================================ */
+:root {
+  --boutique-blush:        #F2C4CE;
+  --boutique-blush-light:  #F8E1E7;
+  --boutique-blush-dark:   #E8A0B0;
+  --boutique-gold:         #C9A84C;
+  --boutique-gold-light:   #E8D5A3;
+  --boutique-white:        #FAFAFA;
+  --boutique-gray-soft:    #F5F5F5;
+  --boutique-gray-mid:     #9E9E9E;
+  --boutique-dark:         #2C2C2C;
+  --boutique-success:      #6DBF94;
+  --boutique-warning:      #F5C842;
+  --boutique-danger:       #E57373;
+  --boutique-info:         #7EC8E3;
+  --boutique-shadow:       0 2px 8px rgba(242, 196, 206, 0.3);
+}
+
+/* Botones boutique */
+.btn-boutique-primary {
+  @apply bg-[#C9A84C] text-white font-medium px-4 py-2 rounded-xl
+         hover:bg-[#b8963e] transition-colors duration-200;
+}
+.btn-boutique-secondary {
+  @apply bg-white border border-[#C9A84C] text-[#C9A84C] font-medium px-4 py-2 rounded-xl
+         hover:bg-[#F8E1E7] transition-colors duration-200;
+}
+.btn-boutique-danger {
+  @apply bg-[#E57373] text-white font-medium px-4 py-2 rounded-xl
+         hover:bg-[#d65f5f] transition-colors duration-200;
+}
+
+/* Cards boutique */
+.card-boutique {
+  @apply bg-[#FAFAFA] border border-[#F2C4CE] rounded-xl;
+  box-shadow: var(--boutique-shadow);
+}
+
+/* Input boutique */
+.input-boutique {
+  @apply border border-[#E8D5A3] rounded-xl px-3 py-2 text-sm focus:outline-none
+         focus:border-[#C9A84C] focus:ring-2 focus:ring-[#F2C4CE] transition-all;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

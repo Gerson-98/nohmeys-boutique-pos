@@ -23,7 +23,7 @@ export function fakeUserComplete() {
     emailVerified: undefined,
     image: undefined,
     password: undefined,
-    role: UserRole.UNKNOW,
+    role: UserRole.CAJERO,
   };
 }
 export function fakeProductStock() {

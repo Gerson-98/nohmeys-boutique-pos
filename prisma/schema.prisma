@@ -1,32 +1,16 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
 
-generator custom_generator {
-  provider = "prisma-generator-fake-data"
-}
-generator dbml {
-  provider = "prisma-dbml-generator"
-}
-
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
-enum UserRole {
-  OWNER
-  WORKER
-  UNKNOW
-}
-
+// ============================================================
+// ENUMS LEGACY (no eliminar — usados por tablas existentes)
+// ============================================================
 enum CatProduct {
   ELECTRO
   DRINK
@@ -34,17 +18,46 @@ enum CatProduct {
   FASHION
 }
 
-model User {
-  id            String    @id @default(cuid())
-  name          String
-  username      String
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  password      String?
-  role          UserRole  @default(UNKNOW)
+// ============================================================
+// ENUMS BOUTIQUE
+// ============================================================
+enum UserRole {
+  ADMIN
+  SUPERVISOR
+  CAJERO
 }
 
+enum EstadoVenta {
+  COMPLETADA
+  ANULADA
+  DEVOLUCION_PARCIAL
+}
+
+enum MetodoPago {
+  EFECTIVO
+  TARJETA
+  TRANSFERENCIA
+  VALE_CREDITO
+  MIXTO
+}
+
+enum EstadoCaja {
+  ABIERTA
+  CERRADA
+}
+
+enum TipoMovimiento {
+  VENTA
+  DEVOLUCION
+  AJUSTE_ENTRADA
+  AJUSTE_SALIDA
+  INVENTARIO_INICIAL
+  CONTEO_FISICO
+}
+
+// ============================================================
+// TABLAS LEGACY (mantener para no romper páginas existentes)
+// ============================================================
 model ProductStock {
   id           String     @id @unique
   name         String
@@ -52,18 +65,15 @@ model ProductStock {
   price        Float
   stock        Float
   cat          CatProduct
-
-  Product Product[]
+  Product      Product[]
 }
 
 model Product {
   id            String          @id @default(cuid())
-  productId     String
+  productId     String          @unique
   productstock  ProductStock    @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   sellprice     Float
   OnSaleProduct OnSaleProduct[]
-
-  @@unique([productId])
 }
 
 model OnSaleProduct {
@@ -87,8 +97,255 @@ model Transaction {
 }
 
 model ShopData {
-  id          String          @id @default(cuid())
-  tax Int?
+  id   String  @id @default(cuid())
+  tax  Int?
   name String?
 }
 
+// ============================================================
+// CONFIGURACIÓN DEL NEGOCIO
+// ============================================================
+model ShopConfig {
+  id              String   @id @default(cuid())
+  nombreComercial String   @default("Nohemy's Boutique")
+  razonSocial     String?
+  nit             String?
+  direccion       String?
+  telefono        String?
+  correo          String?
+  instagram       String?
+  facebook        String?
+  whatsapp        String?
+  logoUrl         String?
+  politicaCambios String?
+  ivaPorcentaje   Float    @default(12.0)
+  moneda          String   @default("GTQ")
+  simboloMoneda   String   @default("Q")
+  updatedAt       DateTime @updatedAt
+}
+
+// ============================================================
+// USUARIOS Y ROLES
+// ============================================================
+model User {
+  id           String     @id @default(cuid())
+  nombre       String
+  username     String     @unique
+  email        String?    @unique
+  passwordHash String
+  pin          String?
+  rol          UserRole   @default(CAJERO)
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  ventas       Venta[]
+  cierresCaja  CierreCaja[]
+  ajustesStock AjusteInventario[]
+  auditLogs    AuditLog[]
+}
+
+// ============================================================
+// PRODUCTOS E INVENTARIO
+// ============================================================
+model Categoria {
+  id        String     @id @default(cuid())
+  nombre    String     @unique
+  icono     String?
+  orden     Int        @default(0)
+  productos Producto[]
+}
+
+model Producto {
+  id          String     @id @default(cuid())
+  nombre      String
+  descripcion String?
+  imagenUrl   String?
+  categoriaId String
+  categoria   Categoria  @relation(fields: [categoriaId], references: [id])
+  costo       Float
+  precioVenta Float
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  variantes   Variante[]
+}
+
+model Variante {
+  id           String    @id @default(cuid())
+  sku          String    @unique
+  productoId   String
+  producto     Producto  @relation(fields: [productoId], references: [id])
+  talla        String?
+  color        String?
+  colorHex     String?
+  stockActual  Int       @default(0)
+  stockMinimo  Int       @default(2)
+  isActive     Boolean   @default(true)
+
+  detallesVenta DetalleVenta[]
+  movimientos   MovimientoInventario[]
+  ajustes       AjusteInventario[]
+}
+
+// ============================================================
+// CLIENTES
+// ============================================================
+model Cliente {
+  id        String   @id @default(cuid())
+  nombre    String
+  telefono  String?
+  email     String?
+  nit       String?
+  direccion String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  ventas Venta[]
+  vales  ValeCredito[]
+}
+
+// ============================================================
+// VENTAS Y POS
+// ============================================================
+model Venta {
+  id              String      @id @default(cuid())
+  numeroTicket    String      @unique
+  clienteId       String?
+  cliente         Cliente?    @relation(fields: [clienteId], references: [id])
+  cajeroId        String
+  cajero          User        @relation(fields: [cajeroId], references: [id])
+  subtotal        Float
+  descuentoGlobal Float       @default(0)
+  impuesto        Float       @default(0)
+  total           Float
+  metodoPago      MetodoPago
+  montoPagado     Float
+  cambio          Float       @default(0)
+  estado          EstadoVenta @default(COMPLETADA)
+  notas           String?
+  cierreCajaId    String?
+  cierreCaja      CierreCaja? @relation(fields: [cierreCajaId], references: [id])
+  createdAt       DateTime    @default(now())
+
+  detalles     DetalleVenta[]
+  pagos        PagoVenta[]
+  devoluciones Devolucion[]
+}
+
+model DetalleVenta {
+  id             String   @id @default(cuid())
+  ventaId        String
+  venta          Venta    @relation(fields: [ventaId], references: [id])
+  varianteId     String
+  variante       Variante @relation(fields: [varianteId], references: [id])
+  cantidad       Int
+  precioUnitario Float
+  descuento      Float    @default(0)
+  subtotal       Float
+}
+
+model PagoVenta {
+  id         String     @id @default(cuid())
+  ventaId    String
+  venta      Venta      @relation(fields: [ventaId], references: [id])
+  metodo     MetodoPago
+  monto      Float
+  referencia String?
+}
+
+// ============================================================
+// CAJA
+// ============================================================
+model CierreCaja {
+  id                 String     @id @default(cuid())
+  cajeroId           String
+  cajero             User       @relation(fields: [cajeroId], references: [id])
+  estado             EstadoCaja @default(ABIERTA)
+  fondoInicial       Float
+  totalEfectivo      Float?
+  totalTarjeta       Float?
+  totalTransferencia Float?
+  efectivoFisico     Float?
+  diferencia         Float?
+  notas              String?
+  abiertaEn          DateTime   @default(now())
+  cerradaEn          DateTime?
+
+  ventas Venta[]
+}
+
+// ============================================================
+// DEVOLUCIONES Y VALES
+// ============================================================
+model Devolucion {
+  id          String   @id @default(cuid())
+  ventaId     String
+  venta       Venta    @relation(fields: [ventaId], references: [id])
+  motivo      String
+  tipoRetorno String
+  monto       Float
+  createdAt   DateTime @default(now())
+
+  vale ValeCredito?
+}
+
+model ValeCredito {
+  id            String      @id @default(cuid())
+  codigo        String      @unique
+  clienteId     String
+  cliente       Cliente     @relation(fields: [clienteId], references: [id])
+  devolucionId  String?     @unique
+  devolucion    Devolucion? @relation(fields: [devolucionId], references: [id])
+  montoOriginal Float
+  saldoActual   Float
+  isUsed        Boolean     @default(false)
+  expiraEn      DateTime?
+  createdAt     DateTime    @default(now())
+}
+
+// ============================================================
+// MOVIMIENTOS DE INVENTARIO (KARDEX)
+// ============================================================
+model MovimientoInventario {
+  id            String         @id @default(cuid())
+  varianteId    String
+  variante      Variante       @relation(fields: [varianteId], references: [id])
+  tipo          TipoMovimiento
+  cantidad      Int
+  stockAnterior Int
+  stockNuevo    Int
+  motivo        String?
+  referenciaId  String?
+  usuarioId     String?
+  createdAt     DateTime       @default(now())
+}
+
+model AjusteInventario {
+  id         String   @id @default(cuid())
+  varianteId String
+  variante   Variante @relation(fields: [varianteId], references: [id])
+  usuarioId  String
+  usuario    User     @relation(fields: [usuarioId], references: [id])
+  tipo       String
+  cantidad   Int
+  motivo     String
+  notas      String?
+  createdAt  DateTime @default(now())
+}
+
+// ============================================================
+// AUDITORÍA
+// ============================================================
+model AuditLog {
+  id        String   @id @default(cuid())
+  usuarioId String
+  usuario   User     @relation(fields: [usuarioId], references: [id])
+  accion    String
+  entidad   String
+  entidadId String?
+  detalle   String
+  ip        String?
+  createdAt DateTime @default(now())
+}
