@@ -5,11 +5,10 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair' });
 const jetbrains = JetBrains_Mono({ subsets: ['latin'], variable: '--font-jetbrains' });
 import { ThemeProvider } from '@/components/theme-provider';
-import { Analytics } from '@vercel/analytics/react';
-import { SpeedInsights } from '@vercel/speed-insights/next';
 import { ToastContainer } from 'react-toastify';
 import NextTopLoader from 'nextjs-toploader';
 import 'react-toastify/dist/ReactToastify.css';
+
 export const metadata: Metadata = {
   title: "Nohemy's Boutique — POS",
   description: 'Sistema de punto de venta para Nohemy\'s Boutique',
@@ -33,8 +32,6 @@ export default async function RootLayout({
             <NextTopLoader showSpinner={false} />
             {children}
             <ToastContainer />
-            <Analytics />
-            <SpeedInsights />
           </ThemeProvider>
         </div>
       </body>
