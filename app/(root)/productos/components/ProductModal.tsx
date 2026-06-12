@@ -47,6 +47,7 @@ export function ProductModal({ open, onClose, onSuccess, productoId }: Props) {
             talla: (v.talla as string) ?? '',
             color: (v.color as string) ?? '',
             colorHex: (v.colorHex as string) ?? '',
+            precioVenta: v.precioVenta ?? null,
             stockActual: v.stockActual,
             stockMinimo: v.stockMinimo,
           })),

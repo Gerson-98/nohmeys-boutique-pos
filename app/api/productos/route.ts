@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getSessionFromRequest } from '@/lib/auth';
 
+// GET /api/productos: accesible para todos los roles autenticados.
+// El campo "costo" se omite para el rol CAJERO (información financiera sensible).
 export async function GET(req: NextRequest) {
   try {
+    const session = await getSessionFromRequest(req);
     const { searchParams } = new URL(req.url);
     const buscar = searchParams.get('buscar') || '';
     const categoriaId = searchParams.get('categoriaId') || '';
@@ -57,6 +61,10 @@ export async function GET(req: NextRequest) {
         (sum: number, v: { stockActual: number }) => sum + v.stockActual,
         0
       );
+      if (session?.rol === 'CAJERO') {
+        const { costo, ...sinCosto } = { ...p, stockTotal };
+        return sinCosto;
+      }
       return { ...p, stockTotal };
     });
 
@@ -77,8 +85,14 @@ export async function GET(req: NextRequest) {
   }
 }
 
+// POST /api/productos: solo ADMIN y SUPERVISOR pueden crear productos.
 export async function POST(req: NextRequest) {
   try {
+    const session = await getSessionFromRequest(req);
+    if (!session || (session.rol !== 'ADMIN' && session.rol !== 'SUPERVISOR')) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
+    }
+
     const body = await req.json();
     const { nombre, descripcion, imagenUrl, categoriaId, costo, precioVenta, variantes } = body;
 
@@ -147,6 +161,7 @@ export async function POST(req: NextRequest) {
             talla: v.talla || null,
             color: v.color || null,
             colorHex: v.colorHex || null,
+            precioVenta: v.precioVenta != null && v.precioVenta !== '' ? parseFloat(v.precioVenta) : null,
             stockActual: parseInt(v.stockActual) || 0,
             stockMinimo: parseInt(v.stockMinimo) || 2,
           })),

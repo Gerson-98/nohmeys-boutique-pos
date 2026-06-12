@@ -6,6 +6,7 @@ export interface VarianteInput {
   talla: string;
   color: string;
   colorHex: string;
+  precioVenta: number | null;
   stockActual: number;
   stockMinimo: number;
 }
@@ -13,11 +14,12 @@ export interface VarianteInput {
 interface Props {
   index: number;
   variante: VarianteInput;
-  onChange: (index: number, field: keyof VarianteInput, value: string | number) => void;
+  precioProducto: number;
+  onChange: (index: number, field: keyof VarianteInput, value: string | number | null) => void;
   onRemove: (index: number) => void;
 }
 
-export function VarianteRow({ index, variante, onChange, onRemove }: Props) {
+export function VarianteRow({ index, variante, precioProducto, onChange, onRemove }: Props) {
   return (
     <tr className="border-b border-[#F2C4CE] hover:bg-[#F8E1E7]/40">
       <td className="px-3 py-2">
@@ -57,6 +59,19 @@ export function VarianteRow({ index, variante, onChange, onRemove }: Props) {
           />
           <span className="text-xs font-mono text-[#9E9E9E]">{variante.colorHex || '—'}</span>
         </div>
+      </td>
+      <td className="px-3 py-2">
+        <input
+          type="number"
+          min={0}
+          step={0.01}
+          value={variante.precioVenta ?? ''}
+          onChange={(e) =>
+            onChange(index, 'precioVenta', e.target.value === '' ? null : parseFloat(e.target.value))
+          }
+          placeholder={`Hereda: Q ${precioProducto.toFixed(2)}`}
+          className="w-32 input-boutique text-xs text-center font-mono"
+        />
       </td>
       <td className="px-3 py-2">
         <input

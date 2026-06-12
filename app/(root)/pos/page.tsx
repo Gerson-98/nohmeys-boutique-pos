@@ -27,7 +27,7 @@ export default function POSPage() {
   // Carrito
   const [items, setItems] = useState<CartItem[]>([]);
   const [cliente, setCliente] = useState<ClientePOS | null>(null);
-  const [descuentoGlobal, setDescuentoGlobal] = useState(0);
+  const [descuentoGlobal, setDescuentoGlobal] = useState(0); // monto en Q
 
   // Modales
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -80,9 +80,9 @@ export default function POSPage() {
             varianteLabel,
             sku: variante.sku,
             imagenUrl: producto.imagenUrl,
-            precio: producto.precioVenta,
+            precio: variante.precioVenta ?? producto.precioVenta,
             cantidad: 1,
-            descuentoPct: 0,
+            descuentoMonto: 0,
             stockActual: variante.stockActual,
           },
         ];
@@ -118,9 +118,13 @@ export default function POSPage() {
     );
   }
 
-  function actualizarDescuento(varianteId: string, pct: number) {
+  function actualizarDescuento(varianteId: string, monto: number) {
     setItems((prev) =>
-      prev.map((i) => (i.varianteId === varianteId ? { ...i, descuentoPct: pct } : i))
+      prev.map((i) =>
+        i.varianteId === varianteId
+          ? { ...i, descuentoMonto: Math.min(Math.max(monto, 0), i.precio * i.cantidad) }
+          : i
+      )
     );
   }
 
@@ -137,11 +141,11 @@ export default function POSPage() {
   // ── Totales ──────────────────────────────────────────────
   const subtotalBruto = items.reduce((s, i) => s + i.precio * i.cantidad, 0);
   const descuentosItems = items.reduce(
-    (s, i) => s + i.precio * i.cantidad * (i.descuentoPct / 100),
+    (s, i) => s + Math.min(Math.max(i.descuentoMonto, 0), i.precio * i.cantidad),
     0
   );
   const subtotalNeto = subtotalBruto - descuentosItems;
-  const descGlobalMonto = subtotalNeto * (descuentoGlobal / 100);
+  const descGlobalMonto = Math.min(Math.max(descuentoGlobal, 0), subtotalNeto);
   const total = subtotalNeto - descGlobalMonto;
 
   // ── Procesar venta ───────────────────────────────────────
@@ -158,7 +162,7 @@ export default function POSPage() {
             varianteId: i.varianteId,
             cantidad: i.cantidad,
             precioUnitario: i.precio,
-            descuento: i.descuentoPct,
+            descuento: i.descuentoMonto,
           })),
           descuentoGlobal,
           pagos,
@@ -248,17 +252,20 @@ export default function POSPage() {
             )}
             {/* Descuento global */}
             <div className="flex items-center justify-between">
-              <span className="text-[#9E9E9E] text-xs">Desc. global</span>
+              <span className="text-[#9E9E9E] text-xs">Desc. global (Q)</span>
               <div className="flex items-center gap-1">
                 <input
                   type="number"
                   min={0}
-                  max={100}
-                  value={descuentoGlobal}
-                  onChange={(e) => setDescuentoGlobal(Math.min(100, Math.max(0, Number(e.target.value))))}
-                  className="w-12 text-center text-xs font-mono input-boutique py-0.5 px-1"
+                  max={subtotalNeto}
+                  step={0.01}
+                  value={descuentoGlobal || ''}
+                  onChange={(e) =>
+                    setDescuentoGlobal(Math.min(subtotalNeto, Math.max(0, Number(e.target.value) || 0)))
+                  }
+                  className="w-16 text-center text-xs font-mono input-boutique py-0.5 px-1"
+                  placeholder="0.00"
                 />
-                <span className="text-xs text-[#9E9E9E]">%</span>
                 {descGlobalMonto > 0 && (
                   <span className="text-xs font-mono text-[#E57373]">-{formatPrecio(descGlobalMonto)}</span>
                 )}
@@ -364,6 +371,7 @@ export default function POSPage() {
       <PaymentModal
         open={paymentOpen}
         total={total}
+        cliente={cliente}
         onConfirmar={procesarVenta}
         onCerrar={() => setPaymentOpen(false)}
       />

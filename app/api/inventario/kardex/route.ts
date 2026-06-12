@@ -33,6 +33,7 @@ export async function GET(req: NextRequest) {
             producto: { select: { nombre: true, imagenUrl: true } },
           },
         },
+        usuario: { select: { nombre: true } },
       },
     });
 

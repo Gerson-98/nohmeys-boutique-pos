@@ -20,13 +20,17 @@ import {
   Sliders,
   LogOut,
   Tag,
+  Wifi,
+  Award,
 } from 'lucide-react';
+import { useShopConfig } from '@/lib/useShopConfig';
 
 interface NavItem {
   label: string;
   href?: string;
   icon: React.ReactNode;
   children?: NavItem[];
+  rolesPermitidos?: string[];
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -49,6 +53,8 @@ const NAV_ITEMS: NavItem[] = [
       { label: 'Ventas', href: '/reportes/ventas', icon: <CreditCard size={16} /> },
       { label: 'Cierre de Caja', href: '/caja', icon: <ClipboardList size={16} /> },
       { label: 'Devoluciones', href: '/reportes/devoluciones', icon: <RotateCcw size={16} /> },
+      { label: 'Transferencias', href: '/finanzas/transferencias', icon: <Wifi size={16} /> },
+      { label: 'Reporte Financiero', href: '/reportes/financiero', icon: <Award size={16} />, rolesPermitidos: ['ADMIN'] },
     ],
   },
   {
@@ -62,6 +68,7 @@ const NAV_ITEMS: NavItem[] = [
   {
     label: 'Configuración',
     icon: <Settings size={18} />,
+    rolesPermitidos: ['ADMIN', 'SUPERVISOR'],
     children: [
       { label: 'Configuración', href: '/configuracion', icon: <Settings size={16} /> },
       { label: 'Usuarios y Roles', href: '/usuarios', icon: <UserCog size={16} /> },
@@ -69,7 +76,7 @@ const NAV_ITEMS: NavItem[] = [
   },
 ];
 
-function NavLink({ item, depth = 0 }: { item: NavItem; depth?: number }) {
+function NavLink({ item, depth = 0, rol }: { item: NavItem; depth?: number; rol: string | null }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(() => {
     if (!item.children) return false;
@@ -81,6 +88,8 @@ function NavLink({ item, depth = 0 }: { item: NavItem; depth?: number }) {
     : false;
 
   if (item.children) {
+    const visibles = item.children.filter((c) => !c.rolesPermitidos || (rol && c.rolesPermitidos.includes(rol)));
+    if (visibles.length === 0) return null;
     return (
       <div>
         <button
@@ -97,8 +106,8 @@ function NavLink({ item, depth = 0 }: { item: NavItem; depth?: number }) {
         </button>
         {open && (
           <div className="mt-0.5 space-y-0.5">
-            {item.children.map((child) => (
-              <NavLink key={child.label} item={child} depth={depth + 1} />
+            {visibles.map((child) => (
+              <NavLink key={child.label} item={child} depth={depth + 1} rol={rol} />
             ))}
           </div>
         )}
@@ -125,6 +134,7 @@ function NavLink({ item, depth = 0 }: { item: NavItem; depth?: number }) {
 
 export function Sidebar() {
   const router = useRouter();
+  const config = useShopConfig();
   const [usuario, setUsuario] = useState<{ nombre: string; rol: string } | null>(null);
 
   useEffect(() => {
@@ -140,19 +150,18 @@ export function Sidebar() {
     <aside className="flex flex-col h-full bg-white border-r border-[#F2C4CE]">
       {/* Logo */}
       <div className="flex items-center gap-3 px-5 py-4 border-b border-[#F2C4CE]">
-        <div className="w-8 h-8 rounded-full bg-[#F2C4CE] flex items-center justify-center text-[#C9A84C] font-bold text-sm font-playfair">
-          N
+        <div className="w-8 h-8 rounded-full bg-[#F2C4CE] flex items-center justify-center text-[#C9A84C] font-bold text-sm font-playfair flex-shrink-0">
+          {(config?.nombreComercial ?? "Nohemy's Boutique").charAt(0).toUpperCase()}
         </div>
         <span className="font-playfair text-[#2C2C2C] font-semibold text-sm leading-tight">
-          Nohemy&apos;s<br />
-          <span className="text-[#C9A84C]">Boutique</span>
+          {config?.nombreComercial ?? "Nohemy's Boutique"}
         </span>
       </div>
 
       {/* Nav items */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
-        {NAV_ITEMS.map((item) => (
-          <NavLink key={item.label} item={item} />
+        {NAV_ITEMS.filter((item) => !item.rolesPermitidos || (usuario && item.rolesPermitidos.includes(usuario.rol))).map((item) => (
+          <NavLink key={item.label} item={item} rol={usuario?.rol ?? null} />
         ))}
       </nav>
 

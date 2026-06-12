@@ -36,6 +36,7 @@ interface ResumenCaja {
   totalEfectivo: number;
   totalTarjeta: number;
   totalTransferencia: number;
+  totalTransferenciaPendiente: number;
 }
 
 interface CajaActual {
@@ -207,8 +208,8 @@ export default function CajaPage() {
               {[
                 { label: 'Total ventas', value: formatPrecio(caja.resumen.totalVentas), icon: <DollarSign size={16} className="text-[#C9A84C]" />, highlight: true },
                 { label: 'Transacciones', value: caja.resumen.cantidadVentas.toString(), icon: <CheckCircle size={16} className="text-[#6DBF94]" /> },
-                { label: 'Efectivo', value: formatPrecio(caja.resumen.totalEfectivo), icon: <Banknote size={16} className="text-[#9E9E9E]" /> },
-                { label: 'Tarjeta/Transf.', value: formatPrecio(caja.resumen.totalTarjeta + caja.resumen.totalTransferencia), icon: <CreditCard size={16} className="text-[#9E9E9E]" /> },
+                { label: 'Efectivo en caja', value: formatPrecio(caja.resumen.totalEfectivo), icon: <Banknote size={16} className="text-[#9E9E9E]" /> },
+                { label: 'Tarjeta/Transf. validadas', value: formatPrecio(caja.resumen.totalTarjeta + caja.resumen.totalTransferencia), icon: <CreditCard size={16} className="text-[#9E9E9E]" /> },
               ].map((k) => (
                 <div key={k.label} className={`card-boutique p-4 ${k.highlight ? 'bg-[#F8E1E7]' : ''}`}>
                   <div className="flex items-center gap-2 mb-1">{k.icon}<span className="text-xs text-[#9E9E9E]">{k.label}</span></div>
@@ -216,6 +217,19 @@ export default function CajaPage() {
                 </div>
               ))}
             </div>
+
+            {/* Transferencias pendientes (informativo) */}
+            {caja.resumen.totalTransferenciaPendiente > 0 && (
+              <div className="card-boutique p-4 flex items-center gap-3 bg-[#F5C842]/10 border border-[#F5C842]">
+                <AlertTriangle size={18} className="text-[#F5C842] flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-[#2C2C2C]">
+                    Transferencias pendientes de validación: <span className="font-mono font-bold">{formatPrecio(caja.resumen.totalTransferenciaPendiente)}</span>
+                  </p>
+                  <p className="text-xs text-[#9E9E9E]">Este monto es informativo y no se incluye en el cierre hasta validarse.</p>
+                </div>
+              </div>
+            )}
 
             {/* Historial de movimientos */}
             <div className="card-boutique overflow-hidden">
@@ -366,9 +380,9 @@ export default function CajaPage() {
               <div className="space-y-2">
                 <h3 className="text-xs font-medium text-[#9E9E9E] uppercase tracking-wide">Ingresos por método</h3>
                 {[
-                  { label: 'Efectivo vendido', value: caja.resumen.totalEfectivo, icon: <Banknote size={14} className="text-[#6DBF94]" /> },
+                  { label: 'Efectivo (neto, sin cambio)', value: caja.resumen.totalEfectivo, icon: <Banknote size={14} className="text-[#6DBF94]" /> },
                   { label: 'Tarjeta', value: caja.resumen.totalTarjeta, icon: <CreditCard size={14} className="text-[#7EC8E3]" /> },
-                  { label: 'Depósito/Transf.', value: caja.resumen.totalTransferencia, icon: <Wifi size={14} className="text-[#C9A84C]" /> },
+                  { label: 'Transf. validadas', value: caja.resumen.totalTransferencia, icon: <Wifi size={14} className="text-[#C9A84C]" /> },
                 ].map((r) => (
                   <div key={r.label} className="flex items-center justify-between">
                     <span className="flex items-center gap-2 text-sm text-[#2C2C2C]">{r.icon}{r.label}</span>
@@ -379,6 +393,12 @@ export default function CajaPage() {
                   <span className="text-sm text-[#2C2C2C]">Total facturado</span>
                   <span className="font-mono text-[#C9A84C]">{formatPrecio(caja.resumen.totalVentas)}</span>
                 </div>
+                {caja.resumen.totalTransferenciaPendiente > 0 && (
+                  <div className="flex items-center justify-between text-xs text-[#9E9E9E] pt-1">
+                    <span>Transf. pendientes (informativo)</span>
+                    <span className="font-mono">{formatPrecio(caja.resumen.totalTransferenciaPendiente)}</span>
+                  </div>
+                )}
               </div>
 
               {/* Conteo de efectivo */}

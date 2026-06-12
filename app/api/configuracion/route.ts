@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getSessionFromRequest } from '@/lib/auth';
 
+// GET /api/configuracion: público (sin restricción de rol), usado para mostrar
+// el nombre/branding de la tienda en login, sidebar, tickets y reportes.
 export async function GET() {
   try {
     let config = await db.shopConfig.findFirst();
@@ -15,8 +18,14 @@ export async function GET() {
   }
 }
 
+// PUT /api/configuracion: solo ADMIN y SUPERVISOR
 export async function PUT(req: NextRequest) {
   try {
+    const session = await getSessionFromRequest(req);
+    if (!session || (session.rol !== 'ADMIN' && session.rol !== 'SUPERVISOR')) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
+    }
+
     const body = await req.json();
     const {
       nombreComercial, razonSocial, nit, direccion, telefono,

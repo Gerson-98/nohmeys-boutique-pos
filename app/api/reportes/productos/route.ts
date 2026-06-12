@@ -41,8 +41,15 @@ export async function GET(req: NextRequest) {
     }
 
     const top = Array.from(mapa.entries())
-      .map(([id, v]) => ({ id, ...v }))
-      .sort((a, b) => b.cantidad - a.cantidad)
+      .map(([id, v]) => ({
+        productoId: id,
+        nombre: v.nombre,
+        imagenUrl: v.imagenUrl,
+        categoria: v.categoria,
+        cantidadVendida: v.cantidad,
+        ingresoTotal: v.ingresos,
+      }))
+      .sort((a, b) => b.cantidadVendida - a.cantidadVendida)
       .slice(0, 10);
 
     return NextResponse.json({ data: top });

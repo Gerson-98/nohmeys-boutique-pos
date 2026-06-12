@@ -6,6 +6,7 @@ import {
   AlertTriangle, CheckCircle, RefreshCw, ArrowRight, Clock,
 } from 'lucide-react';
 import { formatPrecio } from '@/lib/boutique';
+import { useShopConfig } from '@/lib/useShopConfig';
 import { format, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -43,6 +44,7 @@ const METODO_LABEL: Record<string, string> = {
 };
 
 export default function HomePage() {
+  const config = useShopConfig();
   const [data, setData] = useState<DashData | null>(null);
   const [cargando, setCargando] = useState(true);
 
@@ -77,7 +79,7 @@ export default function HomePage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-playfair text-2xl font-bold text-[#2C2C2C]">
-            Buenos días, <span className="text-[#C9A84C]">Nohemy&apos;s</span>
+            Buenos días, <span className="text-[#C9A84C]">{config?.nombreComercial ?? "Nohemy's Boutique"}</span>
           </h1>
           <p className="text-sm text-[#9E9E9E] mt-0.5">
             {format(new Date(), "EEEE d 'de' MMMM yyyy", { locale: es })}
@@ -108,9 +110,9 @@ export default function HomePage() {
           </Link>
         </div>
       ) : (
-        <div className="card-boutique p-4 flex items-center justify-between bg-[#E57373]/10 border-[#E57373]">
+        <div className="card-boutique p-4 flex items-center justify-between bg-[#F5C842]/10 border-[#F5C842]">
           <div className="flex items-center gap-3">
-            <AlertTriangle size={20} className="text-[#E57373]" />
+            <AlertTriangle size={20} className="text-[#C9A84C]" />
             <div>
               <p className="text-sm font-semibold text-[#2C2C2C]">Caja cerrada</p>
               <p className="text-xs text-[#9E9E9E]">No podrás registrar ventas hasta abrir la caja.</p>
@@ -125,14 +127,14 @@ export default function HomePage() {
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { label: 'Ingresos hoy',   value: formatPrecio(kpis.ingresoHoy),   sub: `${kpis.ventasHoy} venta${kpis.ventasHoy !== 1 ? 's' : ''}`,    icon: <DollarSign size={18} className="text-[#C9A84C]" />, gold: true },
-          { label: 'Ingresos del mes', value: formatPrecio(kpis.ingresoMes), sub: `${kpis.ventasMes} transacciones`,                               icon: <TrendingUp size={18} className="text-[#6DBF94]" /> },
-          { label: 'Total clientes', value: kpis.totalClientes.toString(),   sub: 'clientes activos',                                               icon: <Users size={18} className="text-[#7EC8E3]" /> },
-          { label: 'Alertas stock',  value: alertasStock.length.toString(), sub: 'productos con stock bajo',                                        icon: <AlertTriangle size={18} className={alertasStock.length > 0 ? 'text-[#E57373]' : 'text-[#9E9E9E]'} />, danger: alertasStock.length > 0 },
+          { label: 'Ingresos hoy',   value: formatPrecio(kpis.ingresoHoy),   sub: `${kpis.ventasHoy} venta${kpis.ventasHoy !== 1 ? 's' : ''}`,    icon: <DollarSign size={20} className="text-[#C9A84C]" />, cls: 'bg-gradient-to-br from-[#F8E1E7] to-[#FAFAFA] border-[#C9A84C]/40', valueCls: 'text-[#C9A84C]' },
+          { label: 'Ingresos del mes', value: formatPrecio(kpis.ingresoMes), sub: `${kpis.ventasMes} transacciones`,                               icon: <TrendingUp size={20} className="text-[#6DBF94]" />, cls: 'bg-gradient-to-br from-[#6DBF94]/10 to-[#FAFAFA] border-[#6DBF94]/40', valueCls: 'text-[#2C2C2C]' },
+          { label: 'Total clientes', value: kpis.totalClientes.toString(),   sub: 'clientes activos',                                               icon: <Users size={20} className="text-[#7EC8E3]" />, cls: 'bg-gradient-to-br from-[#7EC8E3]/10 to-[#FAFAFA] border-[#7EC8E3]/40', valueCls: 'text-[#2C2C2C]' },
+          { label: 'Alertas stock',  value: alertasStock.length.toString(), sub: 'productos con stock bajo',                                        icon: <AlertTriangle size={20} className={alertasStock.length > 0 ? 'text-[#E57373]' : 'text-[#9E9E9E]'} />, cls: alertasStock.length > 0 ? 'bg-gradient-to-br from-[#E57373]/15 to-[#FAFAFA] border-[#E57373]/40' : 'bg-[#FAFAFA] border-[#F2C4CE]', valueCls: alertasStock.length > 0 ? 'text-[#E57373]' : 'text-[#2C2C2C]' },
         ].map((k) => (
-          <div key={k.label} className={`card-boutique p-4 ${k.gold ? 'bg-[#F8E1E7]' : ''} ${k.danger ? 'bg-[#E57373]/10 border-[#E57373]' : ''}`}>
-            <div className="flex items-center gap-2 mb-1">{k.icon}<span className="text-xs text-[#9E9E9E]">{k.label}</span></div>
-            <p className={`font-mono font-bold text-xl ${k.gold ? 'text-[#C9A84C]' : k.danger ? 'text-[#E57373]' : 'text-[#2C2C2C]'}`}>{k.value}</p>
+          <div key={k.label} className={`card-boutique p-4 border ${k.cls}`}>
+            <div className="flex items-center gap-2 mb-1">{k.icon}<span className="text-xs font-medium text-[#9E9E9E]">{k.label}</span></div>
+            <p className={`font-mono font-bold text-2xl ${k.valueCls}`}>{k.value}</p>
             <p className="text-[10px] text-[#9E9E9E] mt-0.5">{k.sub}</p>
           </div>
         ))}
@@ -251,8 +253,8 @@ export default function HomePage() {
                   </div>
                   <div className="text-right flex-shrink-0">
                     <p className="text-sm font-mono font-bold text-[#C9A84C]">{formatPrecio(v.total)}</p>
-                    <p className="text-[10px] text-[#9E9E9E]">
-                      {isValid(new Date(v.createdAt)) ? format(new Date(v.createdAt), 'HH:mm', { locale: es }) : '—'}
+                    <p className="text-[10px] text-[#9E9E9E]" title="Fecha y Hora">
+                      {isValid(new Date(v.createdAt)) ? format(new Date(v.createdAt), 'dd/MM/yyyy HH:mm', { locale: es }) : '—'}
                     </p>
                   </div>
                 </div>

@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import { Search, Printer, Plus, Minus, Trash2, Tag, Package } from 'lucide-react';
+import { Search, Printer, Plus, Minus, Trash2, Tag, Package, Download } from 'lucide-react';
+import { toast } from 'react-toastify';
 import { formatPrecio } from '@/lib/boutique';
 import { BarcodeCanvas } from '@/components/boutique/BarcodeCanvas';
 
@@ -29,12 +30,42 @@ interface EtiquetaItem {
   cantidad: number;
 }
 
+// Cantidad de etiquetas por hoja tamaño carta (3 columnas x 8 filas)
+const COLUMNAS = 3;
+const FILAS = 8;
+const POR_HOJA = COLUMNAS * FILAS;
+
+function escapeHtml(texto: string): string {
+  const div = document.createElement('div');
+  div.textContent = texto;
+  return div.innerHTML;
+}
+
+// Genera el código de barras de un SKU como imagen PNG (data URL) usando bwip-js
+async function generarBarcodeDataUrl(sku: string): Promise<string> {
+  try {
+    const bwipjs = await import('bwip-js');
+    const canvas = document.createElement('canvas');
+    bwipjs.toCanvas(canvas, {
+      bcid: 'code128',
+      text: sku,
+      scale: 3,
+      height: 12,
+      includetext: false,
+      backgroundcolor: 'ffffff',
+    });
+    return canvas.toDataURL('image/png');
+  } catch {
+    return '';
+  }
+}
+
 export default function EtiquetasPage() {
   const [busqueda, setBusqueda] = useState('');
   const [productos, setProductos] = useState<Producto[]>([]);
   const [cargando, setCargando] = useState(false);
+  const [generando, setGenerando] = useState(false);
   const [etiquetas, setEtiquetas] = useState<EtiquetaItem[]>([]);
-  const printRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Buscar productos
@@ -98,34 +129,60 @@ export default function EtiquetasPage() {
     setEtiquetas((prev) => prev.filter((e) => e.sku !== sku));
   }
 
-  // Genera el HTML de etiquetas para imprimir
-  function imprimir() {
-    if (etiquetas.length === 0) return;
-
-    // Construir etiquetas expandidas (repetir según cantidad)
+  function expandirEtiquetas(): EtiquetaItem[] {
     const expandidas: EtiquetaItem[] = [];
     for (const e of etiquetas) {
       for (let i = 0; i < e.cantidad; i++) expandidas.push(e);
     }
+    return expandidas;
+  }
 
-    // Abrir ventana de impresión con layout 80mm
-    const ventana = window.open('', '_blank', 'width=600,height=700');
-    if (!ventana) return;
+  // Genera y abre la vista de impresión en tamaño carta (3x8 etiquetas por hoja)
+  async function imprimir() {
+    if (etiquetas.length === 0) return;
+    const expandidas = expandirEtiquetas();
 
-    const contenido = expandidas
-      .map(
-        (e) => `
-      <div class="etiqueta">
-        <p class="nombre">${e.productoNombre}</p>
-        <p class="variante">${[e.talla, e.color].filter(Boolean).join(' / ') || '—'}</p>
-        <canvas id="bc-${e.sku}-${Math.random().toString(36).slice(2)}" class="barcode"></canvas>
-        <p class="sku">${e.sku}</p>
-        <p class="precio">Q ${e.precioVenta.toFixed(2)}</p>
+    setGenerando(true);
+    try {
+      // Generar el código de barras de cada SKU único
+      const barcodes = new Map<string, string>();
+      for (const e of etiquetas) {
+        barcodes.set(e.sku, await generarBarcodeDataUrl(e.sku));
+      }
+
+      const ventana = window.open('', '_blank', 'width=900,height=700');
+      if (!ventana) {
+        toast.error('El navegador bloqueó la ventana de impresión. Habilita las ventanas emergentes.');
+        return;
+      }
+
+      // Agrupar etiquetas en hojas de POR_HOJA (3x8 = 24)
+      const hojas: EtiquetaItem[][] = [];
+      for (let i = 0; i < expandidas.length; i += POR_HOJA) {
+        hojas.push(expandidas.slice(i, i + POR_HOJA));
+      }
+
+      const contenidoHojas = hojas
+        .map(
+          (hoja) => `
+      <div class="hoja">
+        ${hoja
+          .map(
+            (e) => `
+        <div class="etiqueta">
+          <p class="nombre">${escapeHtml(e.productoNombre)}</p>
+          <p class="variante">${escapeHtml([e.talla, e.color].filter(Boolean).join(' / ') || '—')}</p>
+          ${barcodes.get(e.sku) ? `<img class="barcode" src="${barcodes.get(e.sku)}" alt="${escapeHtml(e.sku)}" />` : ''}
+          <p class="sku">${escapeHtml(e.sku)}</p>
+          <p class="precio">${formatPrecio(e.precioVenta)}</p>
+        </div>`
+          )
+          .join('')}
       </div>`
-      )
-      .join('');
+        )
+        .join('');
 
-    ventana.document.write(`<!DOCTYPE html>
+      ventana.document.write(`<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
@@ -135,84 +192,150 @@ export default function EtiquetasPage() {
     body {
       font-family: 'Courier New', monospace;
       background: white;
-      padding: 4px;
     }
+    .hoja {
+      display: grid;
+      grid-template-columns: repeat(${COLUMNAS}, 1fr);
+      grid-template-rows: repeat(${FILAS}, 1fr);
+      width: 100%;
+      height: 100vh;
+      page-break-after: always;
+    }
+    .hoja:last-child { page-break-after: auto; }
     .etiqueta {
-      width: 72mm;
-      padding: 4px 4px 6px;
-      margin-bottom: 4px;
-      border-bottom: 1px dashed #ccc;
-      page-break-inside: avoid;
+      border: 1px dashed #ccc;
+      padding: 2mm;
       text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
     }
     .nombre {
-      font-size: 9pt;
+      font-size: 8pt;
       font-weight: bold;
       line-height: 1.2;
-      margin-bottom: 2px;
+      max-width: 100%;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
     .variante {
-      font-size: 7.5pt;
+      font-size: 7pt;
       color: #555;
-      margin-bottom: 3px;
+      margin-top: 1px;
     }
     .barcode {
       display: block;
+      max-width: 90%;
+      height: auto;
       margin: 2px auto;
-      max-width: 100%;
     }
     .sku {
       font-size: 6.5pt;
       color: #777;
       letter-spacing: 0.5px;
-      margin-top: 2px;
     }
     .precio {
-      font-size: 12pt;
+      font-size: 11pt;
       font-weight: bold;
-      margin-top: 3px;
+      margin-top: 1px;
     }
     @page {
-      size: 80mm auto;
-      margin: 0;
+      size: letter;
+      margin: 8mm;
     }
     @media print {
-      body { padding: 2px; }
-      .etiqueta { border-bottom: 1px dashed #999; }
+      .etiqueta { border: 1px dashed #999; }
     }
   </style>
 </head>
 <body>
-  ${contenido}
-  <script src="https://cdn.jsdelivr.net/npm/bwip-js@4/dist/bwip-js-min.js"><\/script>
+  ${contenidoHojas}
   <script>
     window.addEventListener('load', function() {
-      document.querySelectorAll('canvas[id^="bc-"]').forEach(function(canvas) {
-        var sku = canvas.id.replace(/^bc-/, '').replace(/-[a-z0-9]+$/, '');
-        // El id es bc-SKU-random, extraemos el SKU entre el primer y último guión
-        var parts = canvas.id.split('-');
-        // Reconstruir el SKU (todo excepto 'bc' prefijo y el sufijo random)
-        var skuVal = parts.slice(1, parts.length - 1).join('-');
-        try {
-          bwipjs.toCanvas(canvas, {
-            bcid: 'code128',
-            text: skuVal || 'SKU',
-            scale: 2,
-            height: 30,
-            includetext: false,
-            backgroundcolor: 'ffffff'
-          });
-        } catch(e) {}
-      });
-      setTimeout(function() { window.print(); }, 800);
+      setTimeout(function() { window.print(); }, 300);
     });
   <\/script>
 </body>
 </html>`);
-    ventana.document.close();
+      ventana.document.close();
+    } finally {
+      setGenerando(false);
+    }
+  }
+
+  // Genera un PDF tamaño carta con las etiquetas seleccionadas (3x8 por hoja)
+  async function descargarPDF() {
+    if (etiquetas.length === 0) return;
+    const expandidas = expandirEtiquetas();
+
+    setGenerando(true);
+    try {
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF({ unit: 'mm', format: 'letter' });
+
+      const barcodes = new Map<string, string>();
+      for (const e of etiquetas) {
+        barcodes.set(e.sku, await generarBarcodeDataUrl(e.sku));
+      }
+
+      const margen = 8;
+      const pageW = 215.9;
+      const pageH = 279.4;
+      const cellW = (pageW - margen * 2) / COLUMNAS;
+      const cellH = (pageH - margen * 2) / FILAS;
+
+      expandidas.forEach((e, idx) => {
+        const posEnHoja = idx % POR_HOJA;
+        if (idx > 0 && posEnHoja === 0) doc.addPage();
+
+        const col = posEnHoja % COLUMNAS;
+        const fila = Math.floor(posEnHoja / COLUMNAS);
+        const x = margen + col * cellW;
+        const y = margen + fila * cellH;
+
+        doc.setDrawColor(204, 204, 204);
+        doc.setLineDashPattern([1, 1], 0);
+        doc.rect(x, y, cellW, cellH);
+        doc.setLineDashPattern([], 0);
+
+        const centroX = x + cellW / 2;
+
+        doc.setFont('courier', 'bold');
+        doc.setFontSize(8);
+        const nombreCorto =
+          e.productoNombre.length > 28 ? e.productoNombre.slice(0, 26) + '…' : e.productoNombre;
+        doc.text(nombreCorto, centroX, y + 5, { align: 'center' });
+
+        doc.setFont('courier', 'normal');
+        doc.setFontSize(6.5);
+        const variante = [e.talla, e.color].filter(Boolean).join(' / ') || '—';
+        doc.text(variante, centroX, y + 9, { align: 'center' });
+
+        const dataUrl = barcodes.get(e.sku);
+        if (dataUrl) {
+          const imgW = cellW - 10;
+          const imgH = 10;
+          doc.addImage(dataUrl, 'PNG', centroX - imgW / 2, y + 11, imgW, imgH);
+        }
+
+        doc.setFontSize(6);
+        doc.text(e.sku, centroX, y + 24, { align: 'center' });
+
+        doc.setFont('courier', 'bold');
+        doc.setFontSize(11);
+        doc.text(formatPrecio(e.precioVenta), centroX, y + 30, { align: 'center' });
+      });
+
+      const fecha = new Date().toISOString().slice(0, 10);
+      doc.save(`etiquetas-${fecha}.pdf`);
+    } catch {
+      toast.error('No se pudo generar el PDF de etiquetas');
+    } finally {
+      setGenerando(false);
+    }
   }
 
   const totalEtiquetas = etiquetas.reduce((s, e) => s + e.cantidad, 0);
@@ -220,23 +343,33 @@ export default function EtiquetasPage() {
   return (
     <div className="space-y-5 max-w-6xl">
       {/* Encabezado */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="font-playfair text-2xl font-bold text-[#2C2C2C]">
             Etiquetas de <span className="text-[#C9A84C]">códigos de barras</span>
           </h1>
           <p className="text-sm text-[#9E9E9E] mt-0.5">
-            Seleccioná los productos y cantidades, luego imprimí en la AON PR-250
+            Seleccioná los productos y cantidades. Tamaño carta, {POR_HOJA} etiquetas por hoja ({COLUMNAS}x{FILAS}).
           </p>
         </div>
-        <button
-          onClick={imprimir}
-          disabled={etiquetas.length === 0}
-          className="btn-boutique-primary flex items-center gap-2 disabled:opacity-50"
-        >
-          <Printer size={16} />
-          Imprimir {totalEtiquetas > 0 ? `(${totalEtiquetas})` : ''}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={descargarPDF}
+            disabled={etiquetas.length === 0 || generando}
+            className="btn-boutique-secondary flex items-center gap-2 disabled:opacity-50"
+          >
+            <Download size={16} />
+            Descargar PDF
+          </button>
+          <button
+            onClick={imprimir}
+            disabled={etiquetas.length === 0 || generando}
+            className="btn-boutique-primary flex items-center gap-2 disabled:opacity-50"
+          >
+            <Printer size={16} />
+            Imprimir {totalEtiquetas > 0 ? `(${totalEtiquetas})` : ''}
+          </button>
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-5">
@@ -335,7 +468,9 @@ export default function EtiquetasPage() {
             <div className="flex-1 overflow-y-auto">
               {/* Preview de etiqueta (primera de la cola) */}
               <div className="p-4 bg-[#FAFAFA] border-b border-[#F2C4CE]">
-                <p className="text-[10px] font-medium text-[#9E9E9E] mb-2 text-center">PREVIEW — 80mm</p>
+                <p className="text-[10px] font-medium text-[#9E9E9E] mb-2 text-center">
+                  PREVIEW — etiqueta tamaño carta ({COLUMNAS}x{FILAS})
+                </p>
                 <div className="bg-white border border-dashed border-[#C9A84C] rounded-xl p-3 max-w-[200px] mx-auto text-center">
                   <p className="text-[10px] font-bold text-[#2C2C2C] truncate mb-0.5">
                     {etiquetas[0].productoNombre}
@@ -396,19 +531,35 @@ export default function EtiquetasPage() {
             </div>
           )}
 
-          {/* Footer con botón de impresión */}
+          {/* Footer con botones de acción */}
           {etiquetas.length > 0 && (
-            <div className="p-4 border-t border-[#F2C4CE] bg-[#FAFAFA]">
-              <p className="text-[10px] text-[#9E9E9E] text-center mb-3">
-                Se abrirá el diálogo de impresión. Seleccioná la <strong>AON PR-250</strong> como impresora.
+            <div className="p-4 border-t border-[#F2C4CE] bg-[#FAFAFA] space-y-2">
+              <p className="text-[10px] text-[#9E9E9E] text-center">
+                {totalEtiquetas} etiqueta{totalEtiquetas !== 1 ? 's' : ''} ·{' '}
+                {Math.ceil(totalEtiquetas / POR_HOJA)} hoja{Math.ceil(totalEtiquetas / POR_HOJA) !== 1 ? 's' : ''} tamaño carta
               </p>
-              <button
-                onClick={imprimir}
-                className="w-full btn-boutique-primary flex items-center justify-center gap-2 py-3"
-              >
-                <Printer size={16} />
-                Imprimir {totalEtiquetas} etiqueta{totalEtiquetas !== 1 ? 's' : ''}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={descargarPDF}
+                  disabled={generando}
+                  className="flex-1 btn-boutique-secondary flex items-center justify-center gap-2 py-3 disabled:opacity-50"
+                >
+                  <Download size={16} />
+                  PDF
+                </button>
+                <button
+                  onClick={imprimir}
+                  disabled={generando}
+                  className="flex-1 btn-boutique-primary flex items-center justify-center gap-2 py-3 disabled:opacity-50"
+                >
+                  {generando ? (
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Printer size={16} />
+                  )}
+                  Imprimir
+                </button>
+              </div>
             </div>
           )}
         </div>

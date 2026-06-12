@@ -4,6 +4,7 @@ export interface VariantePOS {
   talla: string | null;
   color: string | null;
   colorHex: string | null;
+  precioVenta: number | null;
   stockActual: number;
   stockMinimo: number;
 }
@@ -27,7 +28,7 @@ export interface CartItem {
   imagenUrl: string | null;
   precio: number;
   cantidad: number;
-  descuentoPct: number;
+  descuentoMonto: number; // descuento en Q por unidad de línea (no por unidad individual, sobre el total de línea)
   stockActual: number;
 }
 
@@ -44,8 +45,16 @@ export interface CajeroPOS {
   rol: string;
 }
 
+export interface BancoPOS {
+  id: string;
+  nombre: string;
+  tipo: 'NACIONAL' | 'INTERNACIONAL';
+  logoUrl: string | null;
+}
+
 export interface PagoInput {
   metodo: 'EFECTIVO' | 'TARJETA' | 'TRANSFERENCIA' | 'VALE_CREDITO';
   monto: number;
   referencia?: string;
+  bancoId?: string;
 }

@@ -1,9 +1,22 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { format, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { RefreshCw, Search, Receipt, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import { RefreshCw, Search, Receipt, Filter, ChevronLeft, ChevronRight, Download, Ban } from 'lucide-react';
+import { toast } from 'react-toastify';
 import { formatPrecio } from '@/lib/boutique';
+import { useShopConfig } from '@/lib/useShopConfig';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface DetalleVenta {
   cantidad: number;
@@ -28,6 +41,7 @@ interface Venta {
   total: number;
   subtotal: number;
   descuentoGlobal: number;
+  impuesto: number;
   metodoPago: string;
   estado: string;
   createdAt: string;
@@ -65,6 +79,8 @@ function toHastaISO(dateStr: string) {
 }
 
 export default function VentasReportePage() {
+  const router = useRouter();
+  const config = useShopConfig();
   const hoy = hoyLocal();
   const [desde, setDesde] = useState(hoy);
   const [hasta, setHasta] = useState(hoy);
@@ -75,7 +91,9 @@ export default function VentasReportePage() {
   const [resumen, setResumen] = useState<Resumen | null>(null);
   const [meta, setMeta] = useState<Meta | null>(null);
   const [cargando, setCargando] = useState(false);
+  const [exportando, setExportando] = useState(false);
   const [expandido, setExpandido] = useState<string | null>(null);
+  const [ventaAnular, setVentaAnular] = useState<Venta | null>(null);
 
   const cargar = useCallback(async (pag = pagina) => {
     setCargando(true);
@@ -101,9 +119,76 @@ export default function VentasReportePage() {
 
   function buscar() { cargar(1); setPagina(1); }
 
+  function irAAnular(venta: Venta) {
+    router.push(`/reportes/devoluciones?anular=${encodeURIComponent(venta.numeroTicket)}`);
+  }
+
   function cambiarPagina(nueva: number) {
     setPagina(nueva);
     cargar(nueva);
+  }
+
+  async function descargarExcel() {
+    setExportando(true);
+    try {
+      const p = new URLSearchParams({
+        desde: toDesdeISO(desde),
+        hasta: toHastaISO(hasta),
+        exportar: 'true',
+      });
+      if (metodo) p.set('metodo', metodo);
+      const res = await fetch(`/api/reportes/ventas?${p}`);
+      const d = await res.json();
+      const todasVentas: Venta[] = d.data ?? [];
+
+      if (todasVentas.length === 0) {
+        toast.info('No hay ventas para exportar en este rango de fechas');
+        return;
+      }
+
+      const filas = todasVentas.map((v) => {
+        const fechaObj = new Date(v.createdAt);
+        const productos = (v.detalles ?? [])
+          .map((det) => {
+            const variante = [det.variante.talla, det.variante.color].filter(Boolean).join('/');
+            return `${det.cantidad}x ${det.variante.producto.nombre}${variante ? ` (${variante})` : ''}`;
+          })
+          .join('; ');
+
+        return {
+          'No. Ticket': v.numeroTicket,
+          Fecha: isValid(fechaObj) ? format(fechaObj, 'dd/MM/yyyy') : '',
+          Hora: isValid(fechaObj) ? format(fechaObj, 'HH:mm') : '',
+          Cliente: v.cliente?.nombre ?? '',
+          Cajero: v.cajero?.nombre ?? '',
+          Productos: productos,
+          'Método de Pago': METODO_LABEL[v.metodoPago] ?? v.metodoPago,
+          Subtotal: v.subtotal,
+          Descuento: v.descuentoGlobal,
+          IVA: v.impuesto ?? 0,
+          Total: v.total,
+          Estado: ESTADOS[v.estado]?.label ?? v.estado,
+        };
+      });
+
+      const xlsx = await import('xlsx');
+      const nombreComercial = config?.nombreComercial ?? "Nohemy's Boutique";
+      const hoja = xlsx.utils.aoa_to_sheet([
+        [nombreComercial],
+        [`Reporte de ventas · Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`],
+        [],
+      ]);
+      xlsx.utils.sheet_add_json(hoja, filas, { origin: -1 });
+      const libro = xlsx.utils.book_new();
+      xlsx.utils.book_append_sheet(libro, hoja, 'Ventas');
+
+      const fechaArchivo = format(new Date(), 'yyyy-MM-dd');
+      xlsx.writeFile(libro, `Ventas_Nohemys_${fechaArchivo}.xlsx`);
+    } catch {
+      toast.error('No se pudo generar el archivo de Excel');
+    } finally {
+      setExportando(false);
+    }
   }
 
   return (
@@ -113,9 +198,23 @@ export default function VentasReportePage() {
           <h1 className="font-playfair text-2xl font-bold text-[#2C2C2C]">Historial de ventas</h1>
           <p className="text-sm text-[#9E9E9E] mt-0.5">Consulta y filtra todas las transacciones</p>
         </div>
-        <button onClick={() => cargar(pagina)} className="p-2 rounded-xl hover:bg-[#F8E1E7] transition-colors">
-          <RefreshCw size={16} className="text-[#9E9E9E]" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={descargarExcel}
+            disabled={exportando}
+            className="btn-boutique-secondary flex items-center gap-2 text-sm disabled:opacity-50"
+          >
+            {exportando ? (
+              <span className="w-4 h-4 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Download size={15} />
+            )}
+            Descargar Excel
+          </button>
+          <button onClick={() => cargar(pagina)} className="p-2 rounded-xl hover:bg-[#F8E1E7] transition-colors">
+            <RefreshCw size={16} className="text-[#9E9E9E]" />
+          </button>
+        </div>
       </div>
 
       {/* Filtros */}
@@ -239,6 +338,19 @@ export default function VentasReportePage() {
                         ))}
                       </div>
                     )}
+
+                    {/* Anular venta */}
+                    {v.estado !== 'ANULADA' && (
+                      <div className="pt-2 border-t border-[#F2C4CE]">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setVentaAnular(v); }}
+                          className="flex items-center gap-1.5 text-xs font-medium text-[#E57373] hover:underline"
+                        >
+                          <Ban size={13} />
+                          Anular venta
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -284,6 +396,26 @@ export default function VentasReportePage() {
           </div>
         </div>
       )}
+
+      {/* Confirmación de anulación */}
+      <AlertDialog open={!!ventaAnular} onOpenChange={(open) => !open && setVentaAnular(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Anular esta venta?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se abrirá el formulario de devolución para el ticket{' '}
+              <strong>{ventaAnular?.numeroTicket}</strong> con todos los productos disponibles
+              preseleccionados. Deberás confirmar la devolución para completar la anulación.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => ventaAnular && irAAnular(ventaAnular)}>
+              Continuar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

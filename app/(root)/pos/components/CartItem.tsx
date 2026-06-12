@@ -7,13 +7,13 @@ import type { CartItem as CartItemType } from '../types';
 interface Props {
   item: CartItemType;
   onCantidad: (varianteId: string, delta: number) => void;
-  onDescuento: (varianteId: string, pct: number) => void;
+  onDescuento: (varianteId: string, monto: number) => void;
   onEliminar: (varianteId: string) => void;
 }
 
 export function CartItemRow({ item, onCantidad, onDescuento, onEliminar }: Props) {
   const lineaBase = item.precio * item.cantidad;
-  const descMonto = lineaBase * (item.descuentoPct / 100);
+  const descMonto = Math.min(Math.max(item.descuentoMonto, 0), lineaBase);
   const lineaFinal = lineaBase - descMonto;
 
   return (
@@ -73,24 +73,30 @@ export function CartItemRow({ item, onCantidad, onDescuento, onEliminar }: Props
             </button>
           </div>
 
-          {/* Descuento ítem */}
+          {/* Descuento ítem en Q */}
           <div className="flex items-center gap-1">
-            <span className="text-[10px] text-[#9E9E9E]">Dto.</span>
+            <span className="text-[10px] text-[#9E9E9E]">Dto. Q</span>
             <input
               type="number"
               min={0}
-              max={100}
-              value={item.descuentoPct}
-              onChange={(e) => onDescuento(item.varianteId, Math.min(100, Math.max(0, Number(e.target.value))))}
-              className="w-10 text-center text-xs font-mono input-boutique py-0.5 px-1"
+              max={lineaBase}
+              step={0.01}
+              value={item.descuentoMonto || ''}
+              onChange={(e) => onDescuento(item.varianteId, Math.min(lineaBase, Math.max(0, Number(e.target.value) || 0)))}
+              className="w-16 text-center text-xs font-mono input-boutique py-0.5 px-1"
+              placeholder="0.00"
             />
-            <span className="text-[10px] text-[#9E9E9E]">%</span>
           </div>
 
           {/* Total línea */}
-          <span className="text-sm font-mono font-bold text-[#C9A84C] flex-shrink-0">
-            {formatPrecio(lineaFinal)}
-          </span>
+          <div className="text-right flex-shrink-0">
+            {descMonto > 0 && (
+              <p className="text-[10px] font-mono text-[#9E9E9E] line-through">{formatPrecio(lineaBase)}</p>
+            )}
+            <span className={`text-sm font-mono font-bold ${descMonto > 0 ? 'text-[#6DBF94]' : 'text-[#C9A84C]'}`}>
+              {formatPrecio(lineaFinal)}
+            </span>
+          </div>
         </div>
       </div>
     </div>

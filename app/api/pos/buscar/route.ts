@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
           where: { isActive: true },
           select: {
             id: true, sku: true, talla: true, color: true,
-            colorHex: true, stockActual: true, stockMinimo: true,
+            colorHex: true, precioVenta: true, stockActual: true, stockMinimo: true,
           },
           orderBy: [{ talla: 'asc' }, { color: 'asc' }],
         },

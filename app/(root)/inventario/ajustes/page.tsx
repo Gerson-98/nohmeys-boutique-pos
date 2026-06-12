@@ -28,13 +28,6 @@ interface Ajuste {
   usuario: { nombre: string };
 }
 
-const TIPOS_ENTRADA = [
-  'Compra a proveedor', 'Devolución de cliente', 'Corrección de inventario', 'Mercancía en consignación',
-];
-const TIPOS_SALIDA = [
-  'Merma / daño', 'Robo o extravío', 'Muestra / regalo', 'Corrección de inventario',
-];
-
 export default function AjustesPage() {
   const [ajustes, setAjustes] = useState<Ajuste[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -102,7 +95,7 @@ export default function AjustesPage() {
 
   async function guardar() {
     if (!varianteSeleccionada) { toast.error('Selecciona una variante'); return; }
-    if (!motivo) { toast.error('Selecciona un motivo'); return; }
+    if (!motivo.trim()) { toast.error('Describe el motivo del ajuste'); return; }
     if (!cajero) { toast.error('No hay sesión activa'); return; }
 
     setGuardando(true);
@@ -110,7 +103,7 @@ export default function AjustesPage() {
       const res = await fetch('/api/inventario/ajustes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ varianteId: varianteSeleccionada.id, tipo, cantidad, motivo, notas, usuarioId: cajero.id }),
+        body: JSON.stringify({ varianteId: varianteSeleccionada.id, tipo, cantidad, motivo: motivo.trim(), notas, usuarioId: cajero.id }),
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error);
@@ -123,8 +116,6 @@ export default function AjustesPage() {
       setGuardando(false);
     }
   }
-
-  const motivosActuales = tipo === 'ENTRADA' ? TIPOS_ENTRADA : TIPOS_SALIDA;
 
   return (
     <>
@@ -278,10 +269,13 @@ export default function AjustesPage() {
             {/* Motivo */}
             <div>
               <label className="block text-xs font-medium text-[#2C2C2C] mb-1">Motivo *</label>
-              <select value={motivo} onChange={(e) => setMotivo(e.target.value)} className="w-full input-boutique">
-                <option value="">Seleccionar...</option>
-                {motivosActuales.map((m) => <option key={m} value={m}>{m}</option>)}
-              </select>
+              <textarea
+                value={motivo}
+                onChange={(e) => setMotivo(e.target.value)}
+                rows={2}
+                className="w-full input-boutique resize-none text-sm"
+                placeholder="Describe el motivo del ajuste (ej: Mercadería nueva de proveedor, prenda dañada, etc.)"
+              />
             </div>
 
             {/* Notas */}

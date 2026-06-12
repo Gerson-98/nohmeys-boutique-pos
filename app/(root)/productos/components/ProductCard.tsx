@@ -4,6 +4,16 @@ import { Package, ToggleLeft, ToggleRight, Pencil } from 'lucide-react';
 import { formatPrecio, badgeStock } from '@/lib/boutique';
 import { toast } from 'react-toastify';
 import { useState } from 'react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface Variante {
   id: string;
@@ -28,20 +38,22 @@ interface Props {
   stockTotal: number;
   onToggle: (id: string, nuevoEstado: boolean) => void;
   onEdit: (id: string) => void;
+  puedeEditar?: boolean;
 }
 
 export function ProductCard({
   id, nombre, descripcion, imagenUrl, categoria,
-  precioVenta, isActive, variantes, stockTotal, onToggle, onEdit,
+  precioVenta, isActive, variantes, stockTotal, onToggle, onEdit, puedeEditar = true,
 }: Props) {
   const [toggling, setToggling] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const stockMinimo = variantes.length > 0
     ? Math.min(...variantes.map((v) => v.stockMinimo))
     : 2;
   const { label: stockLabel, color: stockColor } = badgeStock(stockTotal, stockMinimo);
 
-  async function handleToggle() {
+  async function ejecutarToggle() {
     setToggling(true);
     try {
       const res = await fetch(`/api/productos/${id}`, {
@@ -56,6 +68,14 @@ export function ProductCard({
       toast.error('Error: ' + e.message);
     } finally {
       setToggling(false);
+    }
+  }
+
+  function handleToggle() {
+    if (isActive) {
+      setConfirmOpen(true);
+    } else {
+      ejecutarToggle();
     }
   }
 
@@ -125,14 +145,18 @@ export function ProductCard({
 
       {/* Acciones */}
       <div className="flex border-t border-[#F2C4CE]">
-        <button
-          onClick={() => onEdit(id)}
-          className="flex-1 py-2.5 flex items-center justify-center gap-1 text-xs font-medium text-[#C9A84C] hover:bg-[#F8E1E7] transition-colors"
-        >
-          <Pencil size={13} />
-          Editar
-        </button>
-        <div className="w-px bg-[#F2C4CE]" />
+        {puedeEditar && (
+          <>
+            <button
+              onClick={() => onEdit(id)}
+              className="flex-1 py-2.5 flex items-center justify-center gap-1 text-xs font-medium text-[#C9A84C] hover:bg-[#F8E1E7] transition-colors"
+            >
+              <Pencil size={13} />
+              Editar
+            </button>
+            <div className="w-px bg-[#F2C4CE]" />
+          </>
+        )}
         <button
           onClick={handleToggle}
           disabled={toggling}
@@ -142,6 +166,23 @@ export function ProductCard({
           {isActive ? 'Desactivar' : 'Activar'}
         </button>
       </div>
+
+      {/* Confirmación de desactivación */}
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Desactivar producto?</AlertDialogTitle>
+            <AlertDialogDescription>
+              &quot;{nombre}&quot; dejará de estar disponible para la venta en el Punto de Venta. Podrás
+              reactivarlo en cualquier momento desde esta misma pantalla.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={ejecutarToggle}>Desactivar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

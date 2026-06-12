@@ -33,8 +33,15 @@ export default function UsuariosPage() {
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [showPwd, setShowPwd] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  const [autorizado, setAutorizado] = useState<boolean | null>(null);
 
   const [form, setForm] = useState<FormUsuario>({ nombre: '', username: '', email: '', password: '', rol: 'CAJERO' });
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((r) => r.json())
+      .then((d) => setAutorizado(d.user?.rol === 'ADMIN' || d.user?.rol === 'SUPERVISOR'));
+  }, []);
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -47,7 +54,7 @@ export default function UsuariosPage() {
     }
   }, []);
 
-  useEffect(() => { cargar(); }, [cargar]);
+  useEffect(() => { if (autorizado) cargar(); }, [autorizado, cargar]);
 
   function abrirCrear() {
     setEditandoId(null);
@@ -106,6 +113,26 @@ export default function UsuariosPage() {
     } catch (err: any) {
       toast.error(err.message);
     }
+  }
+
+  if (autorizado === null) {
+    return (
+      <div className="flex justify-center py-12">
+        <div className="w-8 h-8 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!autorizado) {
+    return (
+      <div className="max-w-md mx-auto mt-12 card-boutique p-6 text-center space-y-3">
+        <ShieldAlert size={32} className="mx-auto text-[#E57373]" />
+        <h1 className="font-playfair text-xl font-bold text-[#2C2C2C]">Acceso restringido</h1>
+        <p className="text-sm text-[#9E9E9E]">
+          Esta sección está disponible solo para usuarios con rol Administrador o Supervisor.
+        </p>
+      </div>
+    );
   }
 
   return (

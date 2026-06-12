@@ -5,6 +5,7 @@ import { Printer, CheckCircle, ShoppingBag, Download } from 'lucide-react';
 import { formatPrecio } from '@/lib/boutique';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useShopConfig, type ShopConfigData } from '@/lib/useShopConfig';
 
 const METODO_LABEL: Record<string, string> = {
   EFECTIVO: 'Efectivo',
@@ -37,7 +38,13 @@ export interface VentaDetalle {
       producto: { nombre: string };
     };
   }>;
-  pagos: Array<{ metodo: string; monto: number; referencia?: string | null }>;
+  pagos: Array<{
+    metodo: string;
+    monto: number;
+    referencia?: string | null;
+    banco?: { nombre: string } | null;
+    transferencia?: { estado: string; referencia: string | null } | null;
+  }>;
 }
 
 interface Props {
@@ -46,8 +53,8 @@ interface Props {
 }
 
 // Ticket imprimible 80mm con forwardRef para react-to-print
-const Ticket = React.forwardRef<HTMLDivElement, { venta: VentaDetalle }>(
-  ({ venta }, ref) => {
+const Ticket = React.forwardRef<HTMLDivElement, { venta: VentaDetalle; config: ShopConfigData | null }>(
+  ({ venta, config }, ref) => {
     const fecha = format(new Date(venta.createdAt), "dd/MM/yyyy HH:mm", { locale: es });
     return (
       <div
@@ -55,7 +62,9 @@ const Ticket = React.forwardRef<HTMLDivElement, { venta: VentaDetalle }>(
         className="w-full max-w-[80mm] mx-auto bg-white text-[#2C2C2C] text-[11px] font-mono leading-snug p-3"
       >
         <div className="text-center mb-3">
-          <p className="font-serif text-[15px] font-bold tracking-wide">Nohemy&apos;s Boutique</p>
+          <p className="font-serif text-[15px] font-bold tracking-wide">{config?.nombreComercial ?? "Nohemy's Boutique"}</p>
+          {config?.direccion && <p className="text-[9px] text-gray-500">{config.direccion}</p>}
+          {config?.nit && <p className="text-[9px] text-gray-500">NIT: {config.nit}</p>}
           <p className="text-[9px] text-gray-500">Guatemala, GT · {fecha}</p>
         </div>
         <div className="border-t border-dashed border-gray-300 my-2" />
@@ -98,7 +107,7 @@ const Ticket = React.forwardRef<HTMLDivElement, { venta: VentaDetalle }>(
                     · {d.variante.sku}
                   </p>
                   <p className="text-gray-400">
-                    {formatPrecio(d.precioUnitario)}{d.descuento > 0 ? ` -${d.descuento}%` : ''}
+                    {formatPrecio(d.precioUnitario)}{d.descuento > 0 ? ` (-${formatPrecio(d.descuento)})` : ''}
                   </p>
                 </td>
                 <td className="text-center py-0.5">{d.cantidad}</td>
@@ -132,10 +141,33 @@ const Ticket = React.forwardRef<HTMLDivElement, { venta: VentaDetalle }>(
 
         {/* Pago */}
         <div className="space-y-0.5 text-[10px]">
+          {venta.pagos.length > 1 && (
+            <div className="flex justify-between text-gray-400">
+              <span>Pago mixto</span>
+            </div>
+          )}
           {venta.pagos.map((p, i) => (
-            <div key={i} className="flex justify-between">
-              <span className="text-gray-500">{METODO_LABEL[p.metodo] ?? p.metodo}</span>
-              <span>{formatPrecio(p.monto)}</span>
+            <div key={i}>
+              <div className="flex justify-between">
+                <span className="text-gray-500">
+                  {METODO_LABEL[p.metodo] ?? p.metodo}
+                  {p.banco ? ` (${p.banco.nombre})` : ''}
+                </span>
+                <span>{formatPrecio(p.monto)}</span>
+              </div>
+              {p.metodo === 'TRANSFERENCIA' && (
+                <div className="text-gray-400 pl-2">
+                  {p.transferencia?.referencia && <p>Ref: {p.transferencia.referencia}</p>}
+                  {p.transferencia?.estado === 'PENDIENTE_VALIDACION' && (
+                    <p className="font-bold">** Pendiente de validación **</p>
+                  )}
+                </div>
+              )}
+              {p.metodo === 'TARJETA' && p.referencia && (
+                <div className="text-gray-400 pl-2">
+                  <p>Ref: {p.referencia}</p>
+                </div>
+              )}
             </div>
           ))}
           {venta.cambio > 0 && (
@@ -149,7 +181,7 @@ const Ticket = React.forwardRef<HTMLDivElement, { venta: VentaDetalle }>(
         <div className="border-t border-dashed border-gray-300 my-2" />
         <div className="text-center text-[9px] text-gray-400 space-y-0.5">
           <p>¡Gracias por tu compra!</p>
-          <p>Cambios y devoluciones en 15 días con ticket original.</p>
+          <p>{config?.politicaCambios || 'Cambios y devoluciones en 15 días con ticket original.'}</p>
         </div>
       </div>
     );
@@ -158,6 +190,7 @@ const Ticket = React.forwardRef<HTMLDivElement, { venta: VentaDetalle }>(
 Ticket.displayName = 'Ticket';
 
 export function ReceiptModal({ venta, onNuevaVenta }: Props) {
+  const config = useShopConfig();
   const ticketRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = useReactToPrint({
@@ -218,7 +251,7 @@ export function ReceiptModal({ venta, onNuevaVenta }: Props) {
 
         {/* Vista previa del ticket */}
         <div className="flex-1 overflow-y-auto bg-[#F5F5F5] p-4">
-          <Ticket ref={ticketRef} venta={venta} />
+          <Ticket ref={ticketRef} venta={venta} config={config} />
         </div>
 
         {/* Botones */}

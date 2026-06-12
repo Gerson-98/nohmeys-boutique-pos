@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { MetodoPago } from '@prisma/client';
+import { CONSUMIDOR_FINAL_ID, CONSUMIDOR_FINAL_NOMBRE } from '@/lib/boutique';
 
 function generarNumeroTicket(): string {
   const d = new Date();
@@ -13,14 +14,18 @@ interface ItemVenta {
   varianteId: string;
   cantidad: number;
   precioUnitario: number;
-  descuento: number; // porcentaje 0-100
+  descuento: number; // monto en Q sobre el total de la línea
 }
 
 interface PagoInput {
   metodo: MetodoPago;
   monto: number;
   referencia?: string;
+  bancoId?: string;
 }
+
+// Métodos que requieren un cliente identificado (no "Consumidor Final")
+const METODOS_REQUIEREN_CLIENTE: MetodoPago[] = ['TARJETA', 'TRANSFERENCIA'];
 
 export async function GET(req: NextRequest) {
   try {
@@ -77,6 +82,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Debe indicar al menos un método de pago' }, { status: 400 });
     }
 
+    // Validación de cliente según método de pago (capa backend)
+    const requiereCliente = pagos.some((p) => METODOS_REQUIEREN_CLIENTE.includes(p.metodo));
+    if (requiereCliente && (!clienteId || clienteId === CONSUMIDOR_FINAL_ID)) {
+      return NextResponse.json(
+        { error: 'Para pagos con tarjeta o transferencia debe seleccionar o registrar un cliente' },
+        { status: 400 }
+      );
+    }
+    for (const p of pagos) {
+      if ((p.metodo === 'TARJETA' || p.metodo === 'TRANSFERENCIA') && !p.bancoId) {
+        return NextResponse.json({ error: 'Debe seleccionar un banco para el pago con ' + p.metodo.toLowerCase() }, { status: 400 });
+      }
+    }
+
     // Verificar que haya caja abierta
     const cajaAbierta = await db.cierreCaja.findFirst({ where: { estado: 'ABIERTA' } });
     if (!cajaAbierta) {
@@ -107,16 +126,27 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Si es efectivo y no hay cliente, asegurar que exista "Consumidor Final"
+    let clienteFinalId = clienteId || null;
+    if (!clienteFinalId) {
+      await db.cliente.upsert({
+        where: { id: CONSUMIDOR_FINAL_ID },
+        update: {},
+        create: { id: CONSUMIDOR_FINAL_ID, nombre: CONSUMIDOR_FINAL_NOMBRE },
+      });
+      clienteFinalId = CONSUMIDOR_FINAL_ID;
+    }
+
     const venta_id = await db.$transaction(async (tx) => {
-      // Calcular totales
+      // Calcular totales — los descuentos vienen en Q, no porcentaje
       let subtotal = 0;
       for (const item of items) {
         const lineaBase = item.precioUnitario * item.cantidad;
-        const descLinea = lineaBase * (item.descuento / 100);
+        const descLinea = Math.min(Math.max(item.descuento, 0), lineaBase);
         subtotal += lineaBase - descLinea;
       }
 
-      const descGlobal = subtotal * (descuentoGlobal / 100);
+      const descGlobal = Math.min(Math.max(descuentoGlobal || 0, 0), subtotal);
       const baseConDesc = subtotal - descGlobal;
       const impuesto = 0; // IVA ya incluido en el precio (configurable en Módulo 8)
       const total = baseConDesc + impuesto;
@@ -140,7 +170,7 @@ export async function POST(req: NextRequest) {
         data: {
           numeroTicket,
           cajeroId,
-          clienteId: clienteId || null,
+          clienteId: clienteFinalId,
           subtotal,
           descuentoGlobal: descGlobal,
           impuesto,
@@ -158,27 +188,44 @@ export async function POST(req: NextRequest) {
       await tx.detalleVenta.createMany({
         data: items.map((item) => {
           const lineaBase = item.precioUnitario * item.cantidad;
-          const descLinea = lineaBase * (item.descuento / 100);
+          const descLinea = Math.min(Math.max(item.descuento, 0), lineaBase);
           return {
             ventaId: nuevaVenta.id,
             varianteId: item.varianteId,
             cantidad: item.cantidad,
             precioUnitario: item.precioUnitario,
-            descuento: item.descuento,
+            descuento: descLinea,
             subtotal: lineaBase - descLinea,
           };
         }),
       });
 
       // Crear pagos
-      await tx.pagoVenta.createMany({
-        data: pagos.map((p) => ({
-          ventaId: nuevaVenta.id,
-          metodo: p.metodo,
-          monto: p.monto,
-          referencia: p.referencia || null,
-        })),
-      });
+      for (const p of pagos) {
+        const pago = await tx.pagoVenta.create({
+          data: {
+            ventaId: nuevaVenta.id,
+            metodo: p.metodo,
+            monto: p.monto,
+            referencia: p.referencia || null,
+            bancoId: p.bancoId || null,
+          },
+        });
+
+        // Si es transferencia, crear registro pendiente de validación
+        if (p.metodo === 'TRANSFERENCIA' && p.bancoId) {
+          await tx.transferencia.create({
+            data: {
+              ventaId: nuevaVenta.id,
+              pagoVentaId: pago.id,
+              bancoId: p.bancoId,
+              monto: p.monto,
+              referencia: p.referencia || null,
+              estado: 'PENDIENTE_VALIDACION',
+            },
+          });
+        }
+      }
 
       // Descontar stock y registrar movimientos
       for (const item of items) {
@@ -216,7 +263,7 @@ export async function POST(req: NextRequest) {
       where: { id: venta_id },
       include: {
         cajero: { select: { nombre: true } },
-        cliente: { select: { nombre: true, telefono: true } },
+        cliente: { select: { nombre: true, telefono: true, nit: true } },
         detalles: {
           include: {
             variante: {
@@ -224,7 +271,12 @@ export async function POST(req: NextRequest) {
             },
           },
         },
-        pagos: true,
+        pagos: {
+          include: {
+            banco: { select: { nombre: true } },
+            transferencia: { select: { estado: true, referencia: true } },
+          },
+        },
       },
     });
 

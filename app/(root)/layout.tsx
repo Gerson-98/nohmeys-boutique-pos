@@ -1,12 +1,15 @@
+'use client';
 import React from 'react';
 import { Sidebar } from '@/components/boutique/Sidebar';
 import { MobileSidebar } from '@/components/boutique/MobileSidebar';
+import { useShopConfig } from '@/lib/useShopConfig';
 
 interface RootLayoutProps {
   children: React.ReactNode;
 }
 
 export default function RootLayout({ children }: RootLayoutProps) {
+  const config = useShopConfig();
   return (
     <div className="min-h-screen bg-[#F5F5F5]">
       <div className="flex h-screen overflow-hidden">
@@ -23,7 +26,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
           <header className="md:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-[#F2C4CE] shadow-sm">
             <MobileSidebar />
             <span className="font-playfair font-semibold text-[#2C2C2C] text-sm">
-              Nohemy&apos;s <span className="text-[#C9A84C]">Boutique</span>
+              {config?.nombreComercial ?? "Nohemy's Boutique"}
             </span>
             <div className="w-8" />
           </header>

@@ -1,9 +1,10 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Plus, Search, Package } from 'lucide-react';
+import { Plus, Search, Package, Settings2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { ProductCard } from './components/ProductCard';
 import { ProductModal } from './components/ProductModal';
+import { CategoriasModal } from './components/CategoriasModal';
 
 interface Variante {
   id: string;
@@ -44,6 +45,7 @@ export default function ProductosPage() {
   const [productos, setProductos] = useState<Producto[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [rol, setRol] = useState<string | null>(null);
 
   const [buscar, setBuscar] = useState('');
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('');
@@ -52,6 +54,7 @@ export default function ProductosPage() {
   // Modal
   const [modalOpen, setModalOpen] = useState(false);
   const [editandoId, setEditandoId] = useState<string | null>(null);
+  const [categoriasModalOpen, setCategoriasModalOpen] = useState(false);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -77,12 +80,23 @@ export default function ProductosPage() {
     []
   );
 
-  useEffect(() => {
+  const cargarCategorias = useCallback(() => {
     fetch('/api/categorias')
       .then((r) => r.json())
       .then((d) => setCategorias(d.data ?? []))
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((r) => r.json())
+      .then((d) => setRol(d.user?.rol ?? null))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    cargarCategorias();
+  }, [cargarCategorias]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -120,6 +134,9 @@ export default function ProductosPage() {
     );
   }
 
+  // El rol CAJERO no puede crear ni editar productos
+  const puedeGestionarProductos = rol === 'ADMIN' || rol === 'SUPERVISOR';
+
   return (
     <>
       <div className="space-y-5">
@@ -132,13 +149,24 @@ export default function ProductosPage() {
               {productos.length !== 1 ? 's' : ''}
             </p>
           </div>
-          <button
-            onClick={abrirCrear}
-            className="btn-boutique-primary flex items-center gap-2 self-start sm:self-auto"
-          >
-            <Plus size={16} />
-            Nuevo producto
-          </button>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <button
+              onClick={() => setCategoriasModalOpen(true)}
+              className="btn-boutique-secondary flex items-center gap-2"
+            >
+              <Settings2 size={16} />
+              Categorías
+            </button>
+            {puedeGestionarProductos && (
+              <button
+                onClick={abrirCrear}
+                className="btn-boutique-primary flex items-center gap-2"
+              >
+                <Plus size={16} />
+                Nuevo producto
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Buscador */}
@@ -218,7 +246,7 @@ export default function ProductosPage() {
                 ? 'No hay resultados para tu búsqueda.'
                 : 'Aún no hay productos. Crea el primero.'}
             </p>
-            {!buscar && !categoriaSeleccionada && filtroStock === 'todos' && (
+            {!buscar && !categoriaSeleccionada && filtroStock === 'todos' && puedeGestionarProductos && (
               <button onClick={abrirCrear} className="btn-boutique-primary flex items-center gap-2">
                 <Plus size={14} />
                 Crear primer producto
@@ -233,6 +261,7 @@ export default function ProductosPage() {
                 {...p}
                 onToggle={handleToggle}
                 onEdit={abrirEditar}
+                puedeEditar={puedeGestionarProductos}
               />
             ))}
           </div>
@@ -245,6 +274,16 @@ export default function ProductosPage() {
         onClose={cerrarModal}
         onSuccess={handleModalSuccess}
         productoId={editandoId}
+      />
+
+      {/* Modal gestión de categorías */}
+      <CategoriasModal
+        open={categoriasModalOpen}
+        onClose={() => setCategoriasModalOpen(false)}
+        onChange={() => {
+          cargarCategorias();
+          cargarProductos(buscar, categoriaSeleccionada, filtroStock);
+        }}
       />
     </>
   );

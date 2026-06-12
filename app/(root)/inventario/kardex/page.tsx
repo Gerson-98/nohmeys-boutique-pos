@@ -18,6 +18,7 @@ interface Movimiento {
     color: string | null;
     producto: { nombre: string; imagenUrl: string | null };
   };
+  usuario: { nombre: string } | null;
 }
 
 const TIPO_CONFIG: Record<string, { label: string; color: string; entrada: boolean }> = {
@@ -106,15 +107,15 @@ export default function KardexPage() {
       ) : (
         <div className="card-boutique overflow-hidden">
           {/* Header */}
-          <div className="hidden sm:grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] gap-3 px-4 py-2.5 bg-[#FAFAFA] border-b border-[#F2C4CE] text-[10px] font-medium text-[#9E9E9E] uppercase tracking-wide">
+          <div className="hidden sm:grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr] gap-3 px-4 py-2.5 bg-[#FAFAFA] border-b border-[#F2C4CE] text-[10px] font-medium text-[#9E9E9E] uppercase tracking-wide">
             <span>Producto</span><span>Tipo</span><span className="text-center">Cant.</span>
-            <span className="text-center">Anterior</span><span className="text-center">Nuevo</span><span className="text-right">Fecha</span>
+            <span className="text-center">Anterior</span><span className="text-center">Nuevo</span><span>Usuario</span><span className="text-right">Fecha</span>
           </div>
           <div className="divide-y divide-[#F2C4CE]">
             {movimientos.map((m) => {
               const cfg = TIPO_CONFIG[m.tipo] ?? { label: m.tipo, color: 'text-[#9E9E9E]', entrada: true };
               return (
-                <div key={m.id} className="grid grid-cols-1 sm:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] gap-x-3 gap-y-0.5 px-4 py-3 hover:bg-[#FAFAFA] transition-colors items-center">
+                <div key={m.id} className="grid grid-cols-1 sm:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr] gap-x-3 gap-y-0.5 px-4 py-3 hover:bg-[#FAFAFA] transition-colors items-center">
                   <div>
                     <p className="text-sm text-[#2C2C2C]">{m.variante.producto.nombre}</p>
                     <p className="text-[10px] text-[#9E9E9E]">
@@ -136,6 +137,7 @@ export default function KardexPage() {
                   </div>
                   <p className="font-mono text-sm text-center text-[#9E9E9E]">{m.stockAnterior}</p>
                   <p className="font-mono text-sm text-center font-bold text-[#2C2C2C]">{m.stockNuevo}</p>
+                  <p className="text-xs text-[#9E9E9E]">{m.usuario?.nombre ?? 'Sistema'}</p>
                   <p className="text-[10px] text-[#9E9E9E] text-right">
                     {isValid(new Date(m.createdAt)) ? format(new Date(m.createdAt), 'dd/MM/yy HH:mm', { locale: es }) : '—'}
                   </p>

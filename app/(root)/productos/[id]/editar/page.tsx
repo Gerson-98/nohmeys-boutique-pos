@@ -1,6 +1,7 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { ShieldAlert } from 'lucide-react';
 import { ProductForm, type ProductoData } from '../../components/ProductForm';
 
 interface Props {
@@ -11,6 +12,14 @@ export default function EditarProductoPage({ params }: Props) {
   const router = useRouter();
   const [producto, setProducto] = useState<ProductoData | undefined>();
   const [cargando, setCargando] = useState(true);
+  const [autorizado, setAutorizado] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((r) => r.json())
+      .then((d) => setAutorizado(d.user?.rol === 'ADMIN' || d.user?.rol === 'SUPERVISOR'))
+      .catch(() => setAutorizado(false));
+  }, []);
 
   useEffect(() => {
     fetch(`/api/productos/${params.id}`)
@@ -39,10 +48,22 @@ export default function EditarProductoPage({ params }: Props) {
       .finally(() => setCargando(false));
   }, [params.id]);
 
-  if (cargando) {
+  if (cargando || autorizado === null) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="w-8 h-8 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!autorizado) {
+    return (
+      <div className="max-w-md mx-auto mt-12 card-boutique p-6 text-center space-y-3">
+        <ShieldAlert size={32} className="mx-auto text-[#E57373]" />
+        <h1 className="font-playfair text-xl font-bold text-[#2C2C2C]">Acceso restringido</h1>
+        <p className="text-sm text-[#9E9E9E]">
+          Esta sección está disponible solo para usuarios con rol Administrador o Supervisor.
+        </p>
       </div>
     );
   }

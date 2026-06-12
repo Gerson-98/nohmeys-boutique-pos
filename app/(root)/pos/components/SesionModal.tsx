@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Store } from 'lucide-react';
 import type { CajeroPOS } from '../types';
+import { useShopConfig } from '@/lib/useShopConfig';
 
 interface Props {
   onSeleccionar: (cajero: CajeroPOS) => void;
@@ -14,6 +15,7 @@ const ROL_LABEL: Record<string, string> = {
 };
 
 export function SesionModal({ onSeleccionar }: Props) {
+  const config = useShopConfig();
   const [cajeros, setCajeros] = useState<CajeroPOS[]>([]);
   const [cargando, setCargando] = useState(true);
 
@@ -31,7 +33,7 @@ export function SesionModal({ onSeleccionar }: Props) {
           <Store size={24} className="text-[#C9A84C]" />
         </div>
         <h1 className="font-playfair text-2xl font-bold text-[#2C2C2C] mb-1">
-          Nohemy&apos;s Boutique
+          {config?.nombreComercial ?? "Nohemy's Boutique"}
         </h1>
         <p className="text-sm text-[#9E9E9E] mb-6">Selecciona tu nombre para iniciar turno</p>
 

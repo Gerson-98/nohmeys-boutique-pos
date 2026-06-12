@@ -1,6 +1,10 @@
-export function formatPrecio(monto: number): string {
-  return `Q ${monto.toFixed(2)}`;
+export function formatPrecio(monto: number | null | undefined): string {
+  return `Q ${(Number(monto) || 0).toFixed(2)}`;
 }
+
+// ID fijo y reconocible del cliente genérico usado para ventas en efectivo sin cliente seleccionado
+export const CONSUMIDOR_FINAL_ID = 'consumidor-final';
+export const CONSUMIDOR_FINAL_NOMBRE = 'Consumidor Final';
 
 export function calcularMargen(costo: number, precioVenta: number): number {
   if (precioVenta === 0) return 0;
@@ -8,7 +12,7 @@ export function calcularMargen(costo: number, precioVenta: number): number {
 }
 
 export function generarSKU(skuPadre: string, color: string, talla: string): string {
-  const colorInicial = color.substring(0, 2).toUpperCase();
+  const colorInicial = color.trim().charAt(0).toUpperCase() || 'X';
   const tallaFmt = talla.toUpperCase().replace(/\s/g, '');
   return `${skuPadre}-${colorInicial}${tallaFmt}`;
 }

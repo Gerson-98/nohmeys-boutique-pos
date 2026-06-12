@@ -2,9 +2,11 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Lock, User } from 'lucide-react';
+import { useShopConfig } from '@/lib/useShopConfig';
 
 export default function LoginPage() {
   const router = useRouter();
+  const config = useShopConfig();
   const [username, setUsername] = useState('');
 
   useEffect(() => {
@@ -46,10 +48,12 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 rounded-full bg-[#F2C4CE] flex items-center justify-center mx-auto mb-4 shadow-md">
-            <span className="font-playfair text-2xl font-bold text-[#C9A84C]">N</span>
+            <span className="font-playfair text-2xl font-bold text-[#C9A84C]">
+              {(config?.nombreComercial ?? "Nohemy's Boutique").charAt(0).toUpperCase()}
+            </span>
           </div>
           <h1 className="font-playfair text-2xl font-bold text-[#2C2C2C]">
-            Nohemy&apos;s <span className="text-[#C9A84C]">Boutique</span>
+            {config?.nombreComercial ?? "Nohemy's Boutique"}
           </h1>
           <p className="text-sm text-[#9E9E9E] mt-1">Sistema de Punto de Venta</p>
         </div>

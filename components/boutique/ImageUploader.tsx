@@ -9,12 +9,23 @@ interface Props {
   onChange: (url: string) => void;
 }
 
+const TIPOS_PERMITIDOS = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+const TAMANO_MAXIMO_MB = 5;
+
 export function ImageUploader({ value, onChange }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
 
   async function uploadFile(file: File) {
+    if (!TIPOS_PERMITIDOS.includes(file.type)) {
+      toast.error('Formato no permitido. Use JPG, PNG o WEBP');
+      return;
+    }
+    if (file.size > TAMANO_MAXIMO_MB * 1024 * 1024) {
+      toast.error(`La imagen supera el límite de ${TAMANO_MAXIMO_MB}MB`);
+      return;
+    }
     setUploading(true);
     try {
       const form = new FormData();
@@ -47,12 +58,12 @@ export function ImageUploader({ value, onChange }: Props) {
 
   if (value) {
     return (
-      <div className="relative w-full h-44 rounded-xl overflow-hidden border border-[#E8D5A3]">
+      <div className="relative w-full h-44 rounded-xl overflow-hidden border border-[#E8D5A3] bg-[#F8E1E7]">
         <Image
           src={value}
           alt="Imagen del producto"
           fill
-          className="object-cover"
+          className="object-contain"
           unoptimized={value.startsWith('/uploads/')}
         />
         <button
@@ -81,7 +92,7 @@ export function ImageUploader({ value, onChange }: Props) {
       <input
         ref={inputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif"
+        accept="image/jpeg,image/png,image/webp"
         className="hidden"
         onChange={(e) => handleFile(e.target.files?.[0])}
       />
@@ -99,7 +110,7 @@ export function ImageUploader({ value, onChange }: Props) {
             <p className="text-sm font-medium text-[#2C2C2C]">
               {dragging ? 'Suelta la imagen aquí' : 'Arrastra o haz clic para subir'}
             </p>
-            <p className="text-xs text-[#9E9E9E] mt-0.5">JPG, PNG, WEBP · máx. 5MB</p>
+            <p className="text-xs text-[#9E9E9E] mt-0.5">JPG, JPEG, PNG o WEBP · máx. 5MB</p>
           </div>
         </>
       )}

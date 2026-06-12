@@ -10,6 +10,7 @@ export async function GET(req: NextRequest) {
     const metodo = searchParams.get('metodo') || '';
     const pagina = parseInt(searchParams.get('pagina') || '1');
     const limite = parseInt(searchParams.get('limite') || '25');
+    const exportar = searchParams.get('exportar') === 'true';
 
     const where: any = { estado: 'COMPLETADA' };
 
@@ -36,8 +37,7 @@ export async function GET(req: NextRequest) {
       db.venta.findMany({
         where,
         orderBy: { createdAt: 'desc' },
-        skip: (pagina - 1) * limite,
-        take: limite,
+        ...(exportar ? {} : { skip: (pagina - 1) * limite, take: limite }),
         include: {
           cajero: { select: { nombre: true } },
           cliente: { select: { nombre: true } },

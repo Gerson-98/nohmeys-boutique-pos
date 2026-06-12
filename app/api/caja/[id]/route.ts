@@ -35,28 +35,41 @@ export async function PATCH(
       where: { id: params.id },
       include: {
         ventas: {
-          where: { estado: 'COMPLETADA' },
-          include: { pagos: true },
+          where: { estado: { not: 'ANULADA' } },
+          include: { pagos: { include: { transferencia: { select: { estado: true } } } } },
         },
+        devoluciones: { select: { detalle: true } },
       },
     });
 
     if (!caja) return NextResponse.json({ error: 'Caja no encontrada' }, { status: 404 });
     if (caja.estado === 'CERRADA') return NextResponse.json({ error: 'La caja ya está cerrada' }, { status: 409 });
 
-    const totalEfectivo = caja.ventas
-      .flatMap((v) => v.pagos)
+    const todosPagos = caja.ventas.flatMap((v) => v.pagos);
+
+    // El efectivo en caja es el monto recibido en efectivo menos el cambio entregado
+    const totalEfectivoBruto = todosPagos
       .filter((p) => p.metodo === 'EFECTIVO')
       .reduce((s, p) => s + p.monto, 0);
+    const totalCambio = caja.ventas.reduce((s, v) => s + v.cambio, 0);
 
-    const totalTarjeta = caja.ventas
-      .flatMap((v) => v.pagos)
+    const totalAjusteDevoluciones = caja.devoluciones.reduce((s, dev) => {
+      const detalle = dev.detalle as any;
+      return s + (typeof detalle?.ajusteEfectivo === 'number' ? detalle.ajusteEfectivo : 0);
+    }, 0);
+
+    const totalEfectivo = totalEfectivoBruto - totalCambio - totalAjusteDevoluciones;
+
+    const totalTarjeta = todosPagos
       .filter((p) => p.metodo === 'TARJETA')
       .reduce((s, p) => s + p.monto, 0);
 
-    const totalTransferencia = caja.ventas
-      .flatMap((v) => v.pagos)
-      .filter((p) => p.metodo === 'TRANSFERENCIA')
+    const pagosTransferencia = todosPagos.filter((p) => p.metodo === 'TRANSFERENCIA');
+    const totalTransferencia = pagosTransferencia
+      .filter((p) => p.transferencia?.estado === 'VALIDADA')
+      .reduce((s, p) => s + p.monto, 0);
+    const totalTransferenciaPendiente = pagosTransferencia
+      .filter((p) => p.transferencia?.estado === 'PENDIENTE_VALIDACION')
       .reduce((s, p) => s + p.monto, 0);
 
     const efectivoEsperado = caja.fondoInicial + totalEfectivo;
@@ -76,7 +89,7 @@ export async function PATCH(
       },
     });
 
-    return NextResponse.json({ data: cajaCerrada });
+    return NextResponse.json({ data: { ...cajaCerrada, totalTransferenciaPendiente } });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
