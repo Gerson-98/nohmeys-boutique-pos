@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -24,6 +24,7 @@ import {
   Award,
 } from 'lucide-react';
 import { useShopConfig } from '@/lib/useShopConfig';
+import { useUser } from '@/app/context/UserContext';
 
 interface NavItem {
   label: string;
@@ -76,6 +77,12 @@ const NAV_ITEMS: NavItem[] = [
   },
 ];
 
+const ROL_LABELS: Record<string, string> = {
+  ADMIN: 'Administrador',
+  SUPERVISOR: 'Supervisor',
+  CAJERO: 'Cajero',
+};
+
 function NavLink({ item, depth = 0, rol }: { item: NavItem; depth?: number; rol: string | null }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(() => {
@@ -87,6 +94,8 @@ function NavLink({ item, depth = 0, rol }: { item: NavItem; depth?: number; rol:
     ? pathname === item.href || (item.href !== '/home' && pathname.startsWith(item.href))
     : false;
 
+  const groupId = `nav-group-${item.label.toLowerCase().replace(/\s+/g, '-')}`;
+
   if (item.children) {
     const visibles = item.children.filter((c) => !c.rolesPermitidos || (rol && c.rolesPermitidos.includes(rol)));
     if (visibles.length === 0) return null;
@@ -94,18 +103,22 @@ function NavLink({ item, depth = 0, rol }: { item: NavItem; depth?: number; rol:
       <div>
         <button
           onClick={() => setOpen(!open)}
-          className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all
-            ${open ? 'text-[#C9A84C]' : 'text-[#2C2C2C] hover:bg-[#F8E1E7]'}`}
+          aria-expanded={open}
+          aria-controls={groupId}
+          className={`w-full flex items-center justify-between gap-3 px-3 py-2 min-h-[44px] rounded-xl text-sm font-medium transition-all
+            ${open ? 'text-gold-dark bg-gold-warm' : 'text-boutique-dark hover:bg-blush-light'}`}
           style={{ paddingLeft: depth > 0 ? `${depth * 16 + 12}px` : undefined }}
         >
           <span className="flex items-center gap-3">
-            {item.icon}
+            <span aria-hidden="true">{item.icon}</span>
             {item.label}
           </span>
-          {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          <span aria-hidden="true">
+            {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          </span>
         </button>
         {open && (
-          <div className="mt-0.5 space-y-0.5">
+          <div id={groupId} className="mt-0.5 space-y-0.5">
             {visibles.map((child) => (
               <NavLink key={child.label} item={child} depth={depth + 1} rol={rol} />
             ))}
@@ -118,15 +131,15 @@ function NavLink({ item, depth = 0, rol }: { item: NavItem; depth?: number; rol:
   return (
     <Link
       href={item.href!}
-      className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all
+      className={`flex items-center gap-3 px-3 py-2 min-h-[44px] rounded-xl text-sm font-medium transition-all
         ${
           isActive
-            ? 'bg-[#F2C4CE] text-[#C9A84C] border-l-4 border-[#C9A84C] pl-2'
-            : 'text-[#2C2C2C] hover:bg-[#F8E1E7]'
+            ? 'bg-blush text-boutique-dark font-semibold'
+            : 'text-boutique-dark hover:bg-blush-light'
         }`}
       style={{ paddingLeft: depth > 0 ? `${depth * 16 + 12}px` : undefined }}
     >
-      {item.icon}
+      <span aria-hidden="true">{item.icon}</span>
       {item.label}
     </Link>
   );
@@ -135,54 +148,58 @@ function NavLink({ item, depth = 0, rol }: { item: NavItem; depth?: number; rol:
 export function Sidebar() {
   const router = useRouter();
   const config = useShopConfig();
-  const [usuario, setUsuario] = useState<{ nombre: string; rol: string } | null>(null);
-
-  useEffect(() => {
-    fetch('/api/auth/me').then((r) => r.json()).then((d) => { if (d.user) setUsuario(d.user); });
-  }, []);
+  const { usuario } = useUser();
 
   async function logout() {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    router.replace('/login');
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {
+      // Network error — redirect anyway; session expires server-side
+    } finally {
+      router.replace('/login');
+    }
   }
 
   return (
-    <aside className="flex flex-col h-full bg-white border-r border-[#F2C4CE]">
+    <aside className="flex flex-col h-full bg-white border-r border-blush">
       {/* Logo */}
-      <div className="flex items-center gap-3 px-5 py-4 border-b border-[#F2C4CE]">
-        <div className="w-8 h-8 rounded-full bg-[#F2C4CE] flex items-center justify-center text-[#C9A84C] font-bold text-sm font-playfair flex-shrink-0">
+      <div className="flex items-center gap-3 px-5 py-4 border-b border-blush">
+        <div aria-hidden="true" className="w-8 h-8 rounded-full bg-blush flex items-center justify-center text-gold font-bold text-sm font-playfair flex-shrink-0">
           {(config?.nombreComercial ?? "Nohemy's Boutique").charAt(0).toUpperCase()}
         </div>
-        <span className="font-playfair text-[#2C2C2C] font-semibold text-sm leading-tight">
+        <span className="font-playfair text-boutique-dark font-semibold text-sm leading-tight">
           {config?.nombreComercial ?? "Nohemy's Boutique"}
         </span>
       </div>
 
       {/* Nav items */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
-        {NAV_ITEMS.filter((item) => !item.rolesPermitidos || (usuario && item.rolesPermitidos.includes(usuario.rol))).map((item) => (
-          <NavLink key={item.label} item={item} rol={usuario?.rol ?? null} />
-        ))}
+        {NAV_ITEMS
+          .filter((item) => !item.rolesPermitidos || (usuario && item.rolesPermitidos.includes(usuario.rol)))
+          .map((item) => (
+            <NavLink key={item.label} item={item} rol={usuario?.rol ?? null} />
+          ))}
       </nav>
 
       {/* Usuario + Logout */}
-      <div className="px-4 py-3 border-t border-[#F2C4CE] space-y-2">
+      <div className="px-4 py-3 border-t border-blush space-y-2">
         {usuario && (
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-[#F2C4CE] flex items-center justify-center flex-shrink-0">
-              <span className="text-xs font-bold text-[#C9A84C]">{usuario.nombre.charAt(0).toUpperCase()}</span>
+            <div aria-hidden="true" className="w-7 h-7 rounded-full bg-blush flex items-center justify-center flex-shrink-0">
+              <span className="text-xs font-bold text-gold">{usuario.nombre.charAt(0).toUpperCase()}</span>
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-medium text-[#2C2C2C] truncate">{usuario.nombre}</p>
-              <p className="text-[10px] text-[#9E9E9E]">{usuario.rol}</p>
+              <p className="text-xs font-medium text-boutique-dark truncate">{usuario.nombre}</p>
+              <p className="text-[10px] text-boutique-gray-mid">{ROL_LABELS[usuario.rol] ?? usuario.rol}</p>
             </div>
           </div>
         )}
         <button
           onClick={logout}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-[#9E9E9E] hover:bg-[#F8E1E7] hover:text-[#E57373] transition-colors"
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-boutique-gray-mid hover:bg-blush-light hover:text-boutique-danger transition-colors"
         >
-          <LogOut size={14} /> Cerrar sesión
+          <span aria-hidden="true"><LogOut size={14} /></span>
+          Cerrar sesión
         </button>
       </div>
     </aside>

@@ -119,15 +119,15 @@ export function ProductSearch({ onAgregarProducto }: Props) {
   return (
     <div className="flex flex-col h-full">
       {/* Buscador */}
-      <div className="px-4 pt-4 pb-3 border-b border-[#F2C4CE] bg-white space-y-3 flex-shrink-0">
+      <div className="px-4 pt-4 pb-3 border-b border-blush bg-white space-y-3 flex-shrink-0">
         <div className="relative">
           {/* Ícono: muestra feedback del scan */}
           {scanFeedback === 'ok' ? (
-            <CheckCircle2 size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6DBF94] animate-pulse" />
+            <CheckCircle2 size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-boutique-success animate-pulse" />
           ) : scanFeedback === 'error' ? (
-            <ScanLine size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#E57373]" />
+            <ScanLine size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-boutique-danger" />
           ) : (
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9E9E9E]" />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-boutique-gray-mid" />
           )}
           <input
             ref={inputRef}
@@ -137,17 +137,23 @@ export function ProductSearch({ onAgregarProducto }: Props) {
             onKeyDown={handleKeyDown}
             placeholder="Buscar o escanear código de barras..."
             className={`w-full input-boutique pl-9 transition-colors ${
-              scanFeedback === 'ok' ? 'border-[#6DBF94]' : scanFeedback === 'error' ? 'border-[#E57373]' : ''
+              scanFeedback === 'ok' ? 'border-boutique-success' : scanFeedback === 'error' ? 'border-boutique-danger' : ''
             }`}
           />
         </div>
+
+        {scanFeedback === 'error' && (
+          <p className="text-[11px] text-boutique-danger">
+            Producto no encontrado. Verifica el código e intenta de nuevo.
+          </p>
+        )}
 
         {/* Chips de categoría */}
         <div className="flex gap-2 overflow-x-auto pb-0.5">
           <button
             onClick={() => handleCat('')}
             className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-              categoriaId === '' ? 'bg-[#C9A84C] text-white' : 'bg-[#F5F5F5] text-[#2C2C2C] hover:bg-[#F8E1E7]'
+              categoriaId === '' ? 'bg-gold text-white' : 'bg-boutique-gray-soft text-boutique-dark hover:bg-blush-light'
             }`}
           >
             Todas
@@ -157,7 +163,7 @@ export function ProductSearch({ onAgregarProducto }: Props) {
               key={c.id}
               onClick={() => handleCat(c.id)}
               className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                categoriaId === c.id ? 'bg-[#C9A84C] text-white' : 'bg-[#F5F5F5] text-[#2C2C2C] hover:bg-[#F8E1E7]'
+                categoriaId === c.id ? 'bg-gold text-white' : 'bg-boutique-gray-soft text-boutique-dark hover:bg-blush-light'
               }`}
             >
               {c.icono} {c.nombre}
@@ -171,14 +177,18 @@ export function ProductSearch({ onAgregarProducto }: Props) {
         {cargando ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {Array.from({ length: 9 }).map((_, i) => (
-              <div key={i} className="rounded-xl bg-[#F8E1E7]/50 animate-pulse h-40" />
+              <div key={i} className="rounded-xl bg-blush-light/50 animate-pulse motion-reduce:animate-none motion-reduce:opacity-50 h-40" />
             ))}
           </div>
         ) : productos.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <Package size={32} className="text-[#E8A0B0] mb-3" />
-            <p className="text-sm text-[#9E9E9E]">
-              {q ? 'Sin resultados para tu búsqueda' : 'No hay productos disponibles'}
+            <Package size={32} className="text-blush-dark mb-3" />
+            <p className="text-sm text-boutique-gray-dark">
+              {q
+                ? `Sin resultados para "${q}". Prueba con otro nombre o código.`
+                : categoriaId
+                  ? 'No hay productos en esta categoría.'
+                  : 'No hay productos disponibles.'}
             </p>
           </div>
         ) : (
@@ -194,14 +204,14 @@ export function ProductSearch({ onAgregarProducto }: Props) {
                   key={p.id}
                   onClick={() => !agotado && onAgregarProducto(p)}
                   disabled={agotado}
-                  className={`flex flex-col text-left rounded-xl overflow-hidden border transition-all active:scale-95
+                  className={`group flex flex-col text-left rounded-xl overflow-hidden border transition-all active:scale-95
                     ${agotado
                       ? 'border-[#E2E8F0] opacity-60 cursor-not-allowed'
-                      : 'border-[#F2C4CE] hover:border-[#C9A84C] hover:shadow-md cursor-pointer'
+                      : 'border-blush hover:border-gold hover:shadow-md cursor-pointer'
                     }`}
                 >
                   {/* Imagen */}
-                  <div className="relative h-28 bg-[#F8E1E7] flex items-center justify-center overflow-hidden w-full">
+                  <div className="relative h-28 bg-blush-light flex items-center justify-center overflow-hidden w-full">
                     {p.imagenUrl ? (
                       <Image
                         src={p.imagenUrl}
@@ -212,7 +222,7 @@ export function ProductSearch({ onAgregarProducto }: Props) {
                         unoptimized={p.imagenUrl.startsWith('/')}
                       />
                     ) : (
-                      <Package size={28} className="text-[#E8A0B0]" />
+                      <Package size={28} className="text-blush-dark" />
                     )}
                     {/* Badge stock */}
                     <div className={`absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold ${stockColor}`}>
@@ -220,7 +230,7 @@ export function ProductSearch({ onAgregarProducto }: Props) {
                     </div>
                     {/* Icono agregar */}
                     {!agotado && (
-                      <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-[#C9A84C] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-gold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                         <ShoppingCart size={10} className="text-white" />
                       </div>
                     )}
@@ -228,10 +238,10 @@ export function ProductSearch({ onAgregarProducto }: Props) {
 
                   {/* Info */}
                   <div className="p-2 bg-white flex-1">
-                    <p className="text-[11px] font-medium text-[#2C2C2C] leading-snug line-clamp-2 mb-1">
+                    <p className="text-[11px] font-medium text-boutique-dark leading-snug line-clamp-2 mb-1">
                       {p.nombre}
                     </p>
-                    <p className="text-xs font-mono font-bold text-[#C9A84C]">
+                    <p className="text-xs font-mono font-bold text-gold">
                       {formatPrecio(p.precioVenta)}
                     </p>
                   </div>

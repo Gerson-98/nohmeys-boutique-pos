@@ -43,30 +43,30 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F5F5] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-boutique-gray-soft flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-full bg-[#F2C4CE] flex items-center justify-center mx-auto mb-4 shadow-md">
-            <span className="font-playfair text-2xl font-bold text-[#C9A84C]">
+          <div className="w-16 h-16 rounded-full bg-blush flex items-center justify-center mx-auto mb-4 shadow-md">
+            <span className="font-playfair text-2xl font-bold text-gold">
               {(config?.nombreComercial ?? "Nohemy's Boutique").charAt(0).toUpperCase()}
             </span>
           </div>
-          <h1 className="font-playfair text-2xl font-bold text-[#2C2C2C]">
+          <h1 className="font-playfair text-2xl font-bold text-boutique-dark">
             {config?.nombreComercial ?? "Nohemy's Boutique"}
           </h1>
-          <p className="text-sm text-[#9E9E9E] mt-1">Sistema de Punto de Venta</p>
+          <p className="text-sm text-boutique-gray-mid mt-1">Sistema de Punto de Venta</p>
         </div>
 
         {/* Card */}
         <div className="card-boutique p-6 shadow-lg">
-          <h2 className="font-playfair text-lg font-semibold text-[#2C2C2C] mb-5">Iniciar sesión</h2>
+          <h2 className="font-playfair text-lg font-semibold text-boutique-dark mb-5">Iniciar sesión</h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-[#2C2C2C] mb-1">Usuario</label>
+              <label className="block text-xs font-medium text-boutique-dark mb-1">Usuario</label>
               <div className="relative">
-                <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9E9E9E]" />
+                <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-boutique-gray-mid" />
                 <input
                   type="text"
                   value={username}
@@ -81,9 +81,9 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-[#2C2C2C] mb-1">Contraseña</label>
+              <label className="block text-xs font-medium text-boutique-dark mb-1">Contraseña</label>
               <div className="relative">
-                <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9E9E9E]" />
+                <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-boutique-gray-mid" />
                 <input
                   type={showPwd ? 'text' : 'password'}
                   value={password}
@@ -96,7 +96,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPwd(!showPwd)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9E9E9E] hover:text-[#2C2C2C]"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-boutique-gray-mid hover:text-boutique-dark"
                 >
                   {showPwd ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
@@ -104,8 +104,8 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <div className="bg-[#E57373]/10 border border-[#E57373] rounded-xl px-3 py-2">
-                <p className="text-xs text-[#E57373]">{error}</p>
+              <div className="bg-boutique-danger/10 border border-boutique-danger rounded-xl px-3 py-2">
+                <p className="text-xs text-boutique-danger">{error}</p>
               </div>
             )}
 
@@ -122,7 +122,7 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <p className="text-[10px] text-[#9E9E9E] text-center mt-4">
+          <p className="text-[10px] text-boutique-gray-mid text-center mt-4">
             Usuario por defecto: <span className="font-mono">admin</span> · contraseña: cualquier texto la primera vez
           </p>
         </div>

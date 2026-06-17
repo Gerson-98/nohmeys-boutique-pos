@@ -41,11 +41,14 @@ module.exports = {
         gold: {
           DEFAULT: '#C9A84C',
           light: '#E8D5A3',
+          dark: '#7A6424',
+          warm: '#FEFAF3',
         },
         boutique: {
           white: '#FAFAFA',
           'gray-soft': '#F5F5F5',
           'gray-mid': '#9E9E9E',
+          'gray-dark': '#757575',
           dark: '#2C2C2C',
           success: '#6DBF94',
           warning: '#F5C842',

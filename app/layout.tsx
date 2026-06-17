@@ -25,8 +25,8 @@ export default async function RootLayout({
         <div className="overflow-hidden">
           <ThemeProvider
             attribute="class"
-            defaultTheme="system"
-            enableSystem
+            defaultTheme="light"
+            forcedTheme="light"
             disableTransitionOnChange
           >
             <NextTopLoader showSpinner={false} />

@@ -3,6 +3,16 @@ import { useState, useEffect } from 'react';
 import { Plus, Pencil, Trash2, Check, X } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface Categoria {
   id: string;
@@ -28,6 +38,7 @@ export function CategoriasModal({ open, onClose, onChange }: Props) {
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [editNombre, setEditNombre] = useState('');
   const [editIcono, setEditIcono] = useState('');
+  const [eliminandoId, setEliminandoId] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) cargar();
@@ -107,7 +118,6 @@ export function CategoriasModal({ open, onClose, onChange }: Props) {
   }
 
   async function eliminar(id: string) {
-    if (!confirm('¿Eliminar esta categoría?')) return;
     try {
       const res = await fetch(`/api/categorias/${id}`, { method: 'DELETE' });
       const data = await res.json();
@@ -115,19 +125,22 @@ export function CategoriasModal({ open, onClose, onChange }: Props) {
         toast.error(data.error);
         return;
       }
+      setEliminandoId(null);
       await cargar();
       onChange();
       toast.success('Categoría eliminada');
-    } catch (err: any) {
-      toast.error('Error: ' + err.message);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error desconocido';
+      toast.error('Error: ' + msg);
     }
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-md rounded-2xl border border-[#F2C4CE] p-0 overflow-hidden max-h-[85vh] flex flex-col">
-        <DialogHeader className="px-5 pt-5 pb-3 border-b border-[#F2C4CE] bg-[#FAFAFA]">
-          <DialogTitle className="font-playfair text-lg font-bold text-[#2C2C2C]">
+      <DialogContent className="max-w-md rounded-2xl border border-blush p-0 overflow-hidden max-h-[85vh] flex flex-col">
+        <DialogHeader className="px-5 pt-5 pb-3 border-b border-blush bg-boutique-white">
+          <DialogTitle className="font-playfair text-lg font-bold text-boutique-dark">
             Gestionar categorías
           </DialogTitle>
         </DialogHeader>
@@ -162,15 +175,17 @@ export function CategoriasModal({ open, onClose, onChange }: Props) {
 
           {/* Lista */}
           {cargando ? (
-            <div className="flex justify-center py-8">
-              <div className="w-6 h-6 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
+            <div className="space-y-1.5">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="h-10 rounded-xl animate-pulse bg-blush/20" />
+              ))}
             </div>
           ) : categorias.length === 0 ? (
-            <p className="text-sm text-[#9E9E9E] text-center py-4">No hay categorías registradas.</p>
+            <p className="text-sm text-boutique-gray-mid text-center py-4">No hay categorías registradas.</p>
           ) : (
             <div className="space-y-1.5">
               {categorias.map((cat) => (
-                <div key={cat.id} className="flex items-center gap-2 px-3 py-2 rounded-xl border border-[#F2C4CE]">
+                <div key={cat.id} className="flex items-center gap-2 px-3 py-2 rounded-xl border border-blush">
                   {editandoId === cat.id ? (
                     <>
                       <input
@@ -188,24 +203,24 @@ export function CategoriasModal({ open, onClose, onChange }: Props) {
                         className="flex-1 input-boutique text-sm py-1"
                         autoFocus
                       />
-                      <button onClick={() => guardarEdicion(cat.id)} className="text-[#6DBF94] p-1">
+                      <button onClick={() => guardarEdicion(cat.id)} className="text-boutique-success p-1">
                         <Check size={16} />
                       </button>
-                      <button onClick={() => setEditandoId(null)} className="text-[#9E9E9E] p-1">
+                      <button onClick={() => setEditandoId(null)} className="text-boutique-gray-mid p-1">
                         <X size={16} />
                       </button>
                     </>
                   ) : (
                     <>
                       <span className="text-base w-6 text-center">{cat.icono || '🏷️'}</span>
-                      <span className="flex-1 text-sm text-[#2C2C2C]">{cat.nombre}</span>
-                      <span className="text-[10px] text-[#9E9E9E]">
+                      <span className="flex-1 text-sm text-boutique-dark">{cat.nombre}</span>
+                      <span className="text-[10px] text-boutique-gray-mid">
                         {cat._count?.productos ?? 0} producto{(cat._count?.productos ?? 0) !== 1 ? 's' : ''}
                       </span>
-                      <button onClick={() => iniciarEdicion(cat)} className="text-[#C9A84C] p-1 hover:bg-[#F8E1E7] rounded-lg">
+                      <button onClick={() => iniciarEdicion(cat)} className="text-gold p-1 hover:bg-blush-light rounded-lg">
                         <Pencil size={14} />
                       </button>
-                      <button onClick={() => eliminar(cat.id)} className="text-[#E57373] p-1 hover:bg-[#F8E1E7] rounded-lg">
+                      <button onClick={() => setEliminandoId(cat.id)} className="text-boutique-danger p-1 hover:bg-blush-light rounded-lg">
                         <Trash2 size={14} />
                       </button>
                     </>
@@ -217,5 +232,29 @@ export function CategoriasModal({ open, onClose, onChange }: Props) {
         </div>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={eliminandoId !== null} onOpenChange={(v) => !v && setEliminandoId(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>¿Eliminar categoría?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {(() => {
+              const cat = categorias.find((c) => c.id === eliminandoId);
+              const count = cat?._count?.productos ?? 0;
+              return count > 0
+                ? `"${cat?.nombre}" tiene ${count} producto${count !== 1 ? 's' : ''}. Al eliminarla, esos productos quedarán sin categoría. Esta acción no se puede deshacer.`
+                : `"${cat?.nombre}" no tiene productos asignados. Esta acción no se puede deshacer.`;
+            })()}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={() => eliminandoId && eliminar(eliminandoId)}>
+            Eliminar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

@@ -1,0 +1,155 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-12T00:00:00.000Z",
+  "title": "Design System: Nohemy's Boutique POS",
+  "extensions": {
+    "colorMeta": {
+      "antique-gold": {
+        "role": "primary",
+        "displayName": "Antique Gold",
+        "canonical": "oklch(72% 0.10 75)",
+        "tonalRamp": ["#4A3A14", "#6F5621", "#97762F", "#B8963E", "#C9A84C", "#E8D5A3", "#F1E6C9", "#FAF5E8"]
+      },
+      "petal-blush": {
+        "role": "secondary",
+        "displayName": "Petal Blush",
+        "canonical": "oklch(86% 0.06 6)",
+        "tonalRamp": ["#6B2F3D", "#9A4B5C", "#C77E8E", "#E8A0B0", "#F2C4CE", "#F8E1E7", "#FCEFF2", "#FFF8FA"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Soft Charcoal Ink",
+        "canonical": "oklch(24% 0 0)",
+        "tonalRamp": ["#0E0E0E", "#1C1C1C", "#2C2C2C", "#3D3D3D", "#5C5C5C", "#8A8A8A", "#C4C4C4", "#EDEDED"]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Boutique White",
+        "canonical": "oklch(98% 0 0)"
+      },
+      "surface-soft": {
+        "role": "neutral",
+        "displayName": "Soft Gray",
+        "canonical": "oklch(96% 0 0)"
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Quiet Gray",
+        "canonical": "oklch(65% 0 0)"
+      },
+      "success": { "role": "status", "displayName": "Sage Success", "canonical": "oklch(74% 0.09 152)" },
+      "warning": { "role": "status", "displayName": "Soft Amber Warning", "canonical": "oklch(86% 0.13 95)" },
+      "danger": { "role": "status", "displayName": "Muted Coral Danger", "canonical": "oklch(70% 0.13 22)" },
+      "info": { "role": "status", "displayName": "Powder Sky Info", "canonical": "oklch(83% 0.07 230)" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Page-level titles only (Playfair Display)." },
+      "headline": { "displayName": "Headline", "purpose": "Section and card titles (Playfair Display)." },
+      "body": { "displayName": "Body", "purpose": "All working UI text, forms, table cells (Inter)." },
+      "label": { "displayName": "Label", "purpose": "Captions, timestamps, helper text (Inter, Quiet Gray)." },
+      "mono": { "displayName": "Mono Value", "purpose": "Prices, totals, ticket numbers, SKUs (JetBrains Mono)." }
+    },
+    "shadows": [
+      { "name": "ambient-blush-glow", "value": "0 2px 8px rgba(242, 196, 206, 0.3)", "purpose": "The only elevation shadow in the system; applied uniformly to all card-boutique surfaces." }
+    ],
+    "motion": [
+      { "name": "color-transition", "value": "color/background-color 200ms ease", "purpose": "Default hover/focus transition for buttons, nav items, and inputs (transition-colors duration-200)." }
+    ],
+    "breakpoints": [
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Main call-to-action (e.g. 'Abrir caja', 'Guardar').",
+      "html": "<button class=\"ds-btn-primary\">Guardar</button>",
+      "css": ".ds-btn-primary { background: #C9A84C; color: #FFFFFF; font-weight: 500; font-size: 0.875rem; padding: 8px 16px; border-radius: 12px; border: none; transition: background-color 200ms ease; } .ds-btn-primary:hover { background: #B8963E; } .ds-btn-primary:focus-visible { outline: 2px solid #F2C4CE; outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Secondary action alongside a primary button (e.g. 'Cancelar').",
+      "html": "<button class=\"ds-btn-secondary\">Cancelar</button>",
+      "css": ".ds-btn-secondary { background: #FFFFFF; color: #C9A84C; font-weight: 500; font-size: 0.875rem; padding: 8px 16px; border-radius: 12px; border: 1px solid #C9A84C; transition: background-color 200ms ease; } .ds-btn-secondary:hover { background: #F8E1E7; } .ds-btn-secondary:focus-visible { outline: 2px solid #F2C4CE; outline-offset: 2px; }"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Destructive action (e.g. anular venta, eliminar).",
+      "html": "<button class=\"ds-btn-danger\">Eliminar</button>",
+      "css": ".ds-btn-danger { background: #E57373; color: #FFFFFF; font-weight: 500; font-size: 0.875rem; padding: 8px 16px; border-radius: 12px; border: none; transition: background-color 200ms ease; } .ds-btn-danger:hover { background: #D65F5F; }"
+    },
+    {
+      "name": "KPI Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Dashboard stat tile: icon + label, large mono value, sub-caption.",
+      "html": "<div class=\"ds-kpi-card\"><div class=\"ds-kpi-head\"><svg class=\"ds-kpi-icon\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#C9A84C\" stroke-width=\"2\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 7v5l3 3\"/></svg><span class=\"ds-kpi-label\">Ingresos hoy</span></div><p class=\"ds-kpi-value\">Q 1,250.00</p><p class=\"ds-kpi-sub\">8 ventas</p></div>",
+      "css": ".ds-kpi-card { background: #FAFAFA; border: 1px solid rgba(201,168,76,0.4); border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(242,196,206,0.3); background-image: linear-gradient(to bottom right, #F8E1E7, #FAFAFA); font-family: Inter, system-ui, sans-serif; } .ds-kpi-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; } .ds-kpi-label { font-size: 0.75rem; font-weight: 500; color: #9E9E9E; } .ds-kpi-value { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 1.5rem; color: #C9A84C; margin: 0; } .ds-kpi-sub { font-size: 0.625rem; color: #9E9E9E; margin: 2px 0 0; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Standard text field used across forms.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Buscar producto...\" />",
+      "css": ".ds-input { border: 1px solid #E8D5A3; border-radius: 12px; padding: 8px 12px; font-size: 0.875rem; font-family: Inter, system-ui, sans-serif; color: #2C2C2C; background: #FFFFFF; transition: border-color 200ms ease, box-shadow 200ms ease; } .ds-input::placeholder { color: #9E9E9E; } .ds-input:focus-visible { outline: none; border-color: #C9A84C; box-shadow: 0 0 0 2px #F2C4CE; }"
+    },
+    {
+      "name": "Nav Item",
+      "kind": "nav",
+      "refersTo": "card",
+      "description": "Sidebar navigation link, default and active states.",
+      "html": "<a class=\"ds-nav-item ds-nav-item--active\" href=\"#\">Punto de Venta</a>",
+      "css": ".ds-nav-item { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 12px; font-size: 0.875rem; font-weight: 500; font-family: Inter, system-ui, sans-serif; color: #2C2C2C; text-decoration: none; transition: background-color 200ms ease, color 200ms ease; } .ds-nav-item:hover { background: #F8E1E7; } .ds-nav-item--active { background: #F2C4CE; color: #C9A84C; border-left: 4px solid #C9A84C; padding-left: 8px; }"
+    },
+    {
+      "name": "Status Banner",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Caja abierta/cerrada banner: status icon, message, and action link.",
+      "html": "<div class=\"ds-status-banner ds-status-banner--ok\"><div class=\"ds-status-body\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#6DBF94\" stroke-width=\"2\"><path d=\"M20 6L9 17l-5-5\"/></svg><div><p class=\"ds-status-title\">Caja abierta</p><p class=\"ds-status-sub\">Cajero: María · desde 08:00</p></div></div><a class=\"ds-status-link\" href=\"#\">Ver caja →</a></div>",
+      "css": ".ds-status-banner { display: flex; align-items: center; justify-content: space-between; padding: 16px; border-radius: 12px; font-family: Inter, system-ui, sans-serif; box-shadow: 0 2px 8px rgba(242,196,206,0.3); } .ds-status-banner--ok { background: rgba(109,191,148,0.1); border: 1px solid #6DBF94; } .ds-status-body { display: flex; align-items: center; gap: 12px; } .ds-status-title { font-size: 0.875rem; font-weight: 600; color: #2C2C2C; margin: 0; } .ds-status-sub { font-size: 0.75rem; color: #9E9E9E; margin: 2px 0 0; } .ds-status-link { font-size: 0.75rem; font-weight: 500; color: #6DBF94; text-decoration: none; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "El Mostrador de la Boutique (The Boutique Counter)",
+    "overview": "Nohemy's Boutique POS feels like standing at the counter of a well-run boutique: warm, attentive, a little precious in its details — and completely unfussy when it's time to ring up a sale. Petal Blush and Antique Gold carry the warmth and identity; Playfair Display gives titles their boutique elegance; Inter keeps the working interface plain and fast to read; JetBrains Mono turns every price, ticket number, and SKU into something that reads like a printed receipt — exact, trustworthy, scannable. This system explicitly rejects the generic SaaS-dashboard look (cold corporate blues, identical stat cards, gray-on-gray density), and it rejects the opposite failure too: an overly cute or 'femenino' palette tipped into childish decoration. The personality is elegante, cálido, profesional — adult warmth, not whimsy. Per the product's design principles, speed beats density: cashiers on tablets need large, obvious, fast controls, not a screen full of data.",
+    "keyCharacteristics": [
+      "Warm Petal Blush + Antique Gold accents on near-white surfaces (Boutique White / Soft Gray)",
+      "Playfair Display serif for titles only; Inter for all working UI text; JetBrains Mono for anything transactional",
+      "Depth comes from a single soft ambient blush glow, never hard gray shadows",
+      "Generously rounded corners (12px) on every interactive surface",
+      "Role-aware density: cashiers get large, minimal controls; admins get fuller dashboards"
+    ],
+    "rules": [
+      { "name": "The Single Accent Rule", "body": "Antique Gold is the only color that means 'act here' — primary buttons, active states, and the numbers that matter most (totals, KPI headline values).", "section": "colors" },
+      { "name": "The Blush-Is-Ambient Rule", "body": "Petal Blush (and its light/dark steps) is atmosphere: borders, soft fills, hover backgrounds, the glow under cards. It never carries a click target's meaning on its own.", "section": "colors" },
+      { "name": "The Ledger Numbers Rule", "body": "Any number that represents money, a ticket/order identifier, or a SKU renders in JetBrains Mono — regardless of what font surrounds it.", "section": "typography" },
+      { "name": "The One Serif Rule", "body": "Playfair Display appears only in Display and Headline roles. It never appears in body copy, buttons, table cells, or form fields.", "section": "typography" },
+      { "name": "The One Shadow Rule", "body": "There is exactly one elevation shadow — the ambient blush glow. Never introduce a second, darker, gray, or larger-blur shadow.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do reserve Antique Gold (#C9A84C) for primary actions, active states, and headline monetary values.",
+      "Do render every price, total, ticket number, and SKU in JetBrains Mono.",
+      "Do use Playfair Display only for page and section titles.",
+      "Do keep corners at 12px (rounded-xl) across buttons, cards, panels, and inputs.",
+      "Do use the single Ambient Blush Glow shadow for every elevated surface.",
+      "Do size touch targets generously for tablet/touchscreen POS use."
+    ],
+    "donts": [
+      "Don't introduce cold blues, corporate grays, or generic SaaS-dashboard color schemes.",
+      "Don't let the 'elegante, cálido, femenino' personality tip into childish or cursi.",
+      "Don't add a second shadow style, gray drop shadow, or Material-style elevation ladder.",
+      "Don't overload cashier-facing screens with dense tables or controls.",
+      "Don't use gradient text or glassmorphism.",
+      "Don't add new colored left/right 'stripe' border accents beyond the existing sidebar active-state exception."
+    ]
+  }
+}

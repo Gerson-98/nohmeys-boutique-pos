@@ -58,7 +58,7 @@ export function ImageUploader({ value, onChange }: Props) {
 
   if (value) {
     return (
-      <div className="relative w-full h-44 rounded-xl overflow-hidden border border-[#E8D5A3] bg-[#F8E1E7]">
+      <div className="relative w-full h-44 rounded-xl overflow-hidden border border-gold-light bg-blush-light">
         <Image
           src={value}
           alt="Imagen del producto"
@@ -69,7 +69,7 @@ export function ImageUploader({ value, onChange }: Props) {
         <button
           type="button"
           onClick={() => onChange('')}
-          className="absolute top-2 right-2 w-7 h-7 bg-[#E57373] text-white rounded-full flex items-center justify-center hover:bg-[#d65f5f] transition-colors shadow-md"
+          className="absolute top-2 right-2 w-11 h-11 bg-boutique-danger text-white rounded-full flex items-center justify-center hover:bg-[#d65f5f] transition-colors shadow-md"
         >
           <X size={14} />
         </button>
@@ -85,8 +85,8 @@ export function ImageUploader({ value, onChange }: Props) {
       onDrop={onDrop}
       className={`w-full h-44 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-3 cursor-pointer transition-colors
         ${dragging
-          ? 'border-[#C9A84C] bg-[#F8E1E7]'
-          : 'border-[#E8D5A3] bg-[#FAFAFA] hover:border-[#C9A84C] hover:bg-[#F8E1E7]'
+          ? 'border-gold bg-blush-light'
+          : 'border-gold-light bg-boutique-white hover:border-gold hover:bg-blush-light'
         }`}
     >
       <input
@@ -98,19 +98,19 @@ export function ImageUploader({ value, onChange }: Props) {
       />
       {uploading ? (
         <>
-          <div className="w-8 h-8 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
-          <p className="text-xs text-[#9E9E9E]">Subiendo imagen...</p>
+          <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+          <p className="text-xs text-boutique-gray-mid">Subiendo imagen...</p>
         </>
       ) : (
         <>
-          <div className="w-10 h-10 rounded-full bg-[#F2C4CE] flex items-center justify-center">
-            {dragging ? <Upload size={20} className="text-[#C9A84C]" /> : <ImageIcon size={20} className="text-[#C9A84C]" />}
+          <div className="w-10 h-10 rounded-full bg-blush flex items-center justify-center">
+            {dragging ? <Upload size={20} className="text-gold" /> : <ImageIcon size={20} className="text-gold" />}
           </div>
           <div className="text-center">
-            <p className="text-sm font-medium text-[#2C2C2C]">
+            <p className="text-sm font-medium text-boutique-dark">
               {dragging ? 'Suelta la imagen aquí' : 'Arrastra o haz clic para subir'}
             </p>
-            <p className="text-xs text-[#9E9E9E] mt-0.5">JPG, JPEG, PNG o WEBP · máx. 5MB</p>
+            <p className="text-xs text-boutique-gray-mid mt-0.5">JPG, JPEG, PNG o WEBP · máx. 5MB</p>
           </div>
         </>
       )}

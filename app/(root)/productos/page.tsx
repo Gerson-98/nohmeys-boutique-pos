@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Plus, Search, Package, Settings2 } from 'lucide-react';
+import { Plus, Search, Package, Settings2, AlertTriangle, RefreshCw, X } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { ProductCard } from './components/ProductCard';
 import { ProductModal } from './components/ProductModal';
@@ -47,6 +47,8 @@ export default function ProductosPage() {
   const [cargando, setCargando] = useState(true);
   const [rol, setRol] = useState<string | null>(null);
 
+  const [errorProductos, setErrorProductos] = useState(false);
+
   const [buscar, setBuscar] = useState('');
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('');
   const [filtroStock, setFiltroStock] = useState('todos');
@@ -71,8 +73,11 @@ export default function ProductosPage() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
         setProductos(data.data ?? []);
-      } catch (e: any) {
-        toast.error('Error al cargar productos: ' + e.message);
+        setErrorProductos(false);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : 'Error desconocido';
+        toast.error('Error al cargar productos: ' + msg);
+        setErrorProductos(true);
       } finally {
         setCargando(false);
       }
@@ -84,7 +89,7 @@ export default function ProductosPage() {
     fetch('/api/categorias')
       .then((r) => r.json())
       .then((d) => setCategorias(d.data ?? []))
-      .catch(() => {});
+      .catch(() => toast.error('No se pudieron cargar las categorías'));
   }, []);
 
   useEffect(() => {
@@ -143,8 +148,8 @@ export default function ProductosPage() {
         {/* Encabezado */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h1 className="font-playfair text-2xl font-bold text-[#2C2C2C]">Productos</h1>
-            <p className="text-sm text-[#9E9E9E] mt-0.5">
+            <h1 className="font-playfair text-2xl font-bold text-boutique-dark">Productos</h1>
+            <p className="text-sm text-boutique-gray-mid mt-0.5">
               {productos.length} producto{productos.length !== 1 ? 's' : ''} encontrado
               {productos.length !== 1 ? 's' : ''}
             </p>
@@ -171,7 +176,7 @@ export default function ProductosPage() {
 
         {/* Buscador */}
         <div className="relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9E9E9E]" />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-boutique-gray-mid" />
           <input
             type="text"
             value={buscar}
@@ -187,8 +192,8 @@ export default function ProductosPage() {
             onClick={() => setCategoriaSeleccionada('')}
             className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
               categoriaSeleccionada === ''
-                ? 'bg-[#C9A84C] text-white'
-                : 'bg-white border border-[#E8D5A3] text-[#2C2C2C] hover:bg-[#F8E1E7]'
+                ? 'bg-gold text-white'
+                : 'bg-white border border-gold-light text-boutique-dark hover:bg-blush-light'
             }`}
           >
             Todas
@@ -199,8 +204,8 @@ export default function ProductosPage() {
               onClick={() => setCategoriaSeleccionada(cat.id)}
               className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
                 categoriaSeleccionada === cat.id
-                  ? 'bg-[#C9A84C] text-white'
-                  : 'bg-white border border-[#E8D5A3] text-[#2C2C2C] hover:bg-[#F8E1E7]'
+                  ? 'bg-gold text-white'
+                  : 'bg-white border border-gold-light text-boutique-dark hover:bg-blush-light'
               }`}
             >
               {cat.icono && <span className="mr-1">{cat.icono}</span>}
@@ -210,20 +215,28 @@ export default function ProductosPage() {
         </div>
 
         {/* Filtros de stock */}
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           {FILTROS_STOCK.map((f) => (
             <button
               key={f.value}
               onClick={() => setFiltroStock(f.value)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
+              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
                 filtroStock === f.value
-                  ? 'bg-[#F2C4CE] text-[#C9A84C] border border-[#C9A84C]'
-                  : 'bg-white border border-[#E2E8F0] text-[#9E9E9E] hover:bg-[#F8E1E7]'
+                  ? 'bg-blush text-gold border border-gold'
+                  : 'bg-white border border-gold-light text-boutique-dark hover:bg-blush-light'
               }`}
             >
               {f.label}
             </button>
           ))}
+          {(buscar || categoriaSeleccionada || filtroStock !== 'todos') && (
+            <button
+              onClick={() => { setBuscar(''); setCategoriaSeleccionada(''); setFiltroStock('todos'); }}
+              className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs text-boutique-gray-mid hover:text-boutique-dark border border-transparent hover:border-gold-light transition-colors"
+            >
+              <X size={11} /> Limpiar filtros
+            </button>
+          )}
         </div>
 
         {/* Grid de productos */}
@@ -233,15 +246,27 @@ export default function ProductosPage() {
               <div key={i} className="card-boutique animate-pulse h-72" />
             ))}
           </div>
+        ) : errorProductos ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <AlertTriangle size={28} className="text-boutique-danger mb-3" />
+            <p className="text-sm font-semibold text-boutique-dark mb-1">No pudimos cargar los productos</p>
+            <p className="text-xs text-[#757575] mb-4">Verifica tu conexión e intenta de nuevo.</p>
+            <button
+              onClick={() => cargarProductos(buscar, categoriaSeleccionada, filtroStock)}
+              className="btn-boutique-primary text-sm px-4 py-2 flex items-center gap-2"
+            >
+              <RefreshCw size={14} /> Reintentar
+            </button>
+          </div>
         ) : productos.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-16 h-16 rounded-full bg-[#F8E1E7] flex items-center justify-center mb-4">
-              <Package size={28} className="text-[#E8A0B0]" />
+            <div className="w-16 h-16 rounded-full bg-blush-light flex items-center justify-center mb-4">
+              <Package size={28} className="text-blush-dark" />
             </div>
-            <h3 className="font-playfair text-lg font-semibold text-[#2C2C2C] mb-1">
+            <h3 className="font-playfair text-lg font-semibold text-boutique-dark mb-1">
               Sin productos
             </h3>
-            <p className="text-sm text-[#9E9E9E] mb-4">
+            <p className="text-sm text-boutique-gray-mid mb-4">
               {buscar || categoriaSeleccionada || filtroStock !== 'todos'
                 ? 'No hay resultados para tu búsqueda.'
                 : 'Aún no hay productos. Crea el primero.'}

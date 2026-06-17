@@ -37,8 +37,15 @@ export async function POST(req: NextRequest) {
     if (!varianteId || !tipo || !cantidad || !motivo || !usuarioId) {
       return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 });
     }
-    if (cantidad <= 0) {
-      return NextResponse.json({ error: 'La cantidad debe ser mayor a 0' }, { status: 400 });
+    if (!['ENTRADA', 'SALIDA'].includes(tipo)) {
+      return NextResponse.json({ error: 'Tipo inválido, debe ser ENTRADA o SALIDA' }, { status: 400 });
+    }
+    const cantidadNum = Number(cantidad);
+    if (!Number.isInteger(cantidadNum) || cantidadNum <= 0) {
+      return NextResponse.json({ error: 'La cantidad debe ser un número entero positivo' }, { status: 400 });
+    }
+    if (typeof motivo !== 'string' || motivo.trim().length === 0 || motivo.length > 300) {
+      return NextResponse.json({ error: 'El motivo es requerido (máx. 300 caracteres)' }, { status: 400 });
     }
 
     const result = await db.$transaction(async (tx) => {
@@ -48,24 +55,24 @@ export async function POST(req: NextRequest) {
       });
       if (!variante) throw new Error('Variante no encontrada');
 
-      const delta = tipo === 'ENTRADA' ? cantidad : -cantidad;
+      const delta = tipo === 'ENTRADA' ? cantidadNum : -cantidadNum;
       const stockNuevo = variante.stockActual + delta;
       if (stockNuevo < 0) throw new Error(`Stock insuficiente. Actual: ${variante.stockActual}`);
 
       await tx.variante.update({ where: { id: varianteId }, data: { stockActual: stockNuevo } });
 
       const ajuste = await tx.ajusteInventario.create({
-        data: { varianteId, usuarioId, tipo, cantidad, motivo, notas: notas || null },
+        data: { varianteId, usuarioId, tipo, cantidad: cantidadNum, motivo: motivo.trim(), notas: notas || null },
       });
 
       await tx.movimientoInventario.create({
         data: {
           varianteId,
           tipo: tipo === 'ENTRADA' ? 'AJUSTE_ENTRADA' : 'AJUSTE_SALIDA',
-          cantidad,
+          cantidad: cantidadNum,
           stockAnterior: variante.stockActual,
           stockNuevo,
-          motivo,
+          motivo: motivo.trim(),
           referenciaId: ajuste.id,
           usuarioId,
         },

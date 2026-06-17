@@ -2,6 +2,7 @@
 import React, { useRef } from 'react';
 import { useReactToPrint } from 'react-to-print';
 import { Printer, CheckCircle, ShoppingBag, Download } from 'lucide-react';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { formatPrecio } from '@/lib/boutique';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -59,7 +60,7 @@ const Ticket = React.forwardRef<HTMLDivElement, { venta: VentaDetalle; config: S
     return (
       <div
         ref={ref}
-        className="w-full max-w-[80mm] mx-auto bg-white text-[#2C2C2C] text-[11px] font-mono leading-snug p-3"
+        className="w-full max-w-[80mm] mx-auto bg-white text-boutique-dark text-[11px] font-mono leading-snug p-3"
       >
         <div className="text-center mb-3">
           <p className="font-serif text-[15px] font-bold tracking-wide">{config?.nombreComercial ?? "Nohemy's Boutique"}</p>
@@ -237,25 +238,25 @@ export function ReceiptModal({ venta, onNuevaVenta }: Props) {
   if (!venta) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="card-boutique w-full max-w-sm flex flex-col max-h-[90vh] overflow-hidden">
+    <Dialog open={!!venta} onOpenChange={(v) => !v && onNuevaVenta()}>
+      <DialogContent className="max-w-sm rounded-2xl border border-blush p-0 overflow-hidden max-h-[90vh] flex flex-col">
         {/* Header éxito */}
-        <div className="flex flex-col items-center gap-2 p-5 border-b border-[#F2C4CE]">
-          <div className="w-12 h-12 rounded-full bg-[#6DBF94]/20 flex items-center justify-center">
-            <CheckCircle size={26} className="text-[#6DBF94]" />
+        <div className="flex flex-col items-center gap-2 p-5 border-b border-blush">
+          <div className="w-12 h-12 rounded-full bg-boutique-success/20 flex items-center justify-center">
+            <CheckCircle size={26} className="text-boutique-success" />
           </div>
-          <h2 className="font-playfair text-xl font-bold text-[#2C2C2C]">¡Venta completada!</h2>
-          <p className="text-xs font-mono text-[#9E9E9E]">{venta.numeroTicket}</p>
-          <p className="text-2xl font-mono font-bold text-[#C9A84C]">{formatPrecio(venta.total)}</p>
+          <DialogTitle className="font-playfair text-xl font-bold text-boutique-dark">¡Venta completada!</DialogTitle>
+          <p className="text-xs font-mono text-boutique-gray-dark">{venta.numeroTicket}</p>
+          <p className="text-2xl font-mono font-bold text-gold">{formatPrecio(venta.total)}</p>
         </div>
 
         {/* Vista previa del ticket */}
-        <div className="flex-1 overflow-y-auto bg-[#F5F5F5] p-4">
+        <div className="flex-1 overflow-y-auto bg-boutique-gray-soft p-4">
           <Ticket ref={ticketRef} venta={venta} config={config} />
         </div>
 
         {/* Botones */}
-        <div className="p-4 border-t border-[#F2C4CE] space-y-2">
+        <div className="p-4 border-t border-blush space-y-2">
           <div className="flex gap-2">
             <button
               onClick={handlePrint}
@@ -280,7 +281,7 @@ export function ReceiptModal({ venta, onNuevaVenta }: Props) {
             Nueva venta
           </button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -10,7 +10,9 @@
   --boutique-blush-light:  #F8E1E7;
   --boutique-blush-dark:   #E8A0B0;
   --boutique-gold:         #C9A84C;
+  --boutique-gold-dark:    #7A6424;
   --boutique-gold-light:   #E8D5A3;
+  --boutique-gold-warm:    #FEFAF3;
   --boutique-white:        #FAFAFA;
   --boutique-gray-soft:    #F5F5F5;
   --boutique-gray-mid:     #9E9E9E;
@@ -24,74 +26,52 @@
 
 /* Botones boutique */
 .btn-boutique-primary {
-  @apply bg-[#C9A84C] text-white font-medium px-4 py-2 rounded-xl
+  @apply bg-gold text-white font-medium px-4 py-2 rounded-xl min-h-[44px]
          hover:bg-[#b8963e] transition-colors duration-200;
 }
 .btn-boutique-secondary {
-  @apply bg-white border border-[#C9A84C] text-[#C9A84C] font-medium px-4 py-2 rounded-xl
-         hover:bg-[#F8E1E7] transition-colors duration-200;
+  @apply bg-white border border-gold text-gold-dark font-medium px-4 py-2 rounded-xl min-h-[44px]
+         hover:bg-blush-light hover:text-boutique-dark transition-colors duration-200;
 }
 .btn-boutique-danger {
-  @apply bg-[#E57373] text-white font-medium px-4 py-2 rounded-xl
+  @apply bg-boutique-danger text-white font-medium px-4 py-2 rounded-xl min-h-[44px]
          hover:bg-[#d65f5f] transition-colors duration-200;
 }
 
 /* Cards boutique */
 .card-boutique {
-  @apply bg-[#FAFAFA] border border-[#F2C4CE] rounded-xl;
+  @apply bg-boutique-white border border-blush rounded-xl;
   box-shadow: var(--boutique-shadow);
 }
 
 /* Input boutique */
 .input-boutique {
-  @apply border border-[#E8D5A3] rounded-xl px-3 py-2 text-sm focus:outline-none
-         focus:border-[#C9A84C] focus:ring-2 focus:ring-[#F2C4CE] transition-all;
+  @apply border border-gold-light rounded-xl px-3 py-2 text-sm focus:outline-none
+         focus:border-gold focus:ring-2 focus:ring-gold transition-all;
 }
 
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --foreground: 0 0% 17%;           /* #2C2C2C */
+    --card: 0 0% 98%;
+    --card-foreground: 0 0% 17%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 142.1 76.2% 36.3%;
-    --primary-foreground: 355.7 100% 97.3%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 142.1 76.2% 36.3%;
-    --radius: 1rem;
-  }
-
-  .dark {
-    --background: 20 14.3% 4.1%;
-    --foreground: 0 0% 95%;
-    --card: 24 9.8% 10%;
-    --card-foreground: 0 0% 95%;
-    --popover: 0 0% 9%;
-    --popover-foreground: 0 0% 95%;
-    --primary: 142.1 70.6% 45.3%;
-    --primary-foreground: 144.9 80.4% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 15%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 12 6.5% 15.1%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 85.7% 97.3%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 142.4 71.8% 29.2%;
+    --popover-foreground: 0 0% 17%;
+    --primary: 42 54% 54%;            /* #C9A84C boutique gold */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 344 63% 93%;         /* #F8E1E7 boutique blush-light */
+    --secondary-foreground: 0 0% 17%;
+    --muted: 345 30% 96%;
+    --muted-foreground: 0 0% 62%;     /* #9E9E9E boutique-gray-mid */
+    --accent: 344 63% 93%;
+    --accent-foreground: 0 0% 17%;
+    --destructive: 0 69% 68%;         /* #E57373 */
+    --destructive-foreground: 0 0% 100%;
+    --border: 345 64% 86%;            /* #F2C4CE boutique blush */
+    --input: 45 56% 80%;              /* #E8D5A3 boutique gold-light */
+    --ring: 42 54% 54%;               /* #C9A84C boutique gold */
+    --radius: 0.75rem;
   }
 }
 
@@ -155,57 +135,4 @@
     margin-top: 0.5rem;
     margin-bottom: 0.5rem;
   }
-}
-
-.apexcharts-legend-text {
-  @apply !text-body dark:!text-bodydark;
-}
-
-.apexcharts-text {
-  @apply !fill-body dark:!fill-bodydark;
-}
-
-.apexcharts-xcrosshairs {
-  @apply !fill-stroke dark:!fill-strokedark;
-}
-
-.apexcharts-gridline {
-  @apply !stroke-stroke dark:!stroke-strokedark;
-}
-
-.apexcharts-series.apexcharts-pie-series path {
-  @apply dark:!stroke-transparent;
-}
-
-.apexcharts-legend-series {
-  @apply !inline-flex gap-1.5;
-}
-
-.apexcharts-tooltip.apexcharts-theme-light {
-  @apply dark:!border-strokedark dark:!bg-boxdark;
-}
-
-.apexcharts-tooltip.apexcharts-theme-light .apexcharts-tooltip-title {
-  @apply dark:!border-strokedark dark:!bg-meta-4;
-}
-
-.apexcharts-xaxistooltip,
-.apexcharts-yaxistooltip {
-  @apply dark:!border-meta-4 dark:!bg-meta-4 dark:!text-bodydark1;
-}
-
-.apexcharts-xaxistooltip-bottom:after {
-  @apply !border-b-gr dark:!border-b-meta-4;
-}
-
-.apexcharts-xaxistooltip-bottom:before {
-  @apply !border-b-gr dark:!border-b-meta-4;
-}
-
-.apexcharts-xaxistooltip-bottom {
-  @apply !rounded !border-none !bg-gr !text-xs !font-medium !text-black dark:!text-white;
-}
-
-.apexcharts-tooltip-series-group {
-  @apply !pl-1.5;
 }

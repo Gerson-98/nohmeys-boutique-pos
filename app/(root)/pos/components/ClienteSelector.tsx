@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import { Search, UserPlus, X, User } from 'lucide-react';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'react-toastify';
 import type { ClientePOS } from '../types';
 
@@ -40,17 +41,17 @@ export function ClienteSelector({ cliente, onSeleccionar }: Props) {
 
   if (cliente) {
     return (
-      <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-[#F8E1E7] border border-[#E8A0B0]">
+      <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-blush-light border border-blush-dark">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-[#F2C4CE] flex items-center justify-center">
-            <User size={13} className="text-[#C9A84C]" />
+          <div className="w-7 h-7 rounded-full bg-blush flex items-center justify-center">
+            <User size={13} className="text-gold" />
           </div>
           <div>
-            <p className="text-xs font-medium text-[#2C2C2C]">{cliente.nombre}</p>
-            {cliente.telefono && <p className="text-[10px] text-[#9E9E9E]">{cliente.telefono}</p>}
+            <p className="text-xs font-medium text-boutique-dark">{cliente.nombre}</p>
+            {cliente.telefono && <p className="text-[10px] text-boutique-gray-dark">{cliente.telefono}</p>}
           </div>
         </div>
-        <button onClick={() => onSeleccionar(null)} className="p-1 hover:text-[#E57373] text-[#9E9E9E] transition-colors">
+        <button onClick={() => onSeleccionar(null)} aria-label="Quitar cliente seleccionado" className="p-1 hover:text-boutique-danger text-boutique-gray-mid transition-colors">
           <X size={14} />
         </button>
       </div>
@@ -61,7 +62,7 @@ export function ClienteSelector({ cliente, onSeleccionar }: Props) {
     <div ref={ref} className="relative">
       <div className="flex gap-2">
         <div className="relative flex-1">
-          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#9E9E9E]" />
+          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-boutique-gray-mid" />
           <input
             type="text"
             value={buscar}
@@ -74,26 +75,27 @@ export function ClienteSelector({ cliente, onSeleccionar }: Props) {
         <button
           onClick={() => setModalNuevo(true)}
           title="Nuevo cliente rápido"
-          className="px-2.5 py-2 rounded-xl border border-[#E8D5A3] text-[#C9A84C] hover:bg-[#F8E1E7] transition-colors flex-shrink-0"
+          aria-label="Nuevo cliente rápido"
+          className="px-2.5 py-2 rounded-xl border border-gold-light text-gold hover:bg-blush-light transition-colors flex-shrink-0"
         >
           <UserPlus size={15} />
         </button>
       </div>
 
       {mostrando && resultados.length > 0 && (
-        <div className="absolute z-30 top-full mt-1 left-0 right-0 bg-white border border-[#F2C4CE] rounded-xl shadow-lg overflow-hidden">
+        <div className="absolute z-30 top-full mt-1 left-0 right-0 bg-white border border-blush rounded-xl shadow-lg overflow-hidden">
           {resultados.map((c) => (
             <button
               key={c.id}
               onClick={() => seleccionar(c)}
-              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[#F8E1E7] transition-colors text-left"
+              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-blush-light transition-colors text-left"
             >
-              <div className="w-6 h-6 rounded-full bg-[#F2C4CE] flex items-center justify-center flex-shrink-0">
-                <span className="text-[10px] font-bold text-[#C9A84C]">{c.nombre.charAt(0)}</span>
+              <div className="w-6 h-6 rounded-full bg-blush flex items-center justify-center flex-shrink-0">
+                <span className="text-[10px] font-bold text-gold">{c.nombre.charAt(0)}</span>
               </div>
               <div>
-                <p className="text-xs font-medium text-[#2C2C2C]">{c.nombre}</p>
-                {c.telefono && <p className="text-[10px] text-[#9E9E9E]">{c.telefono}</p>}
+                <p className="text-xs font-medium text-boutique-dark">{c.nombre}</p>
+                {c.telefono && <p className="text-[10px] text-boutique-gray-dark">{c.telefono}</p>}
               </div>
             </button>
           ))}
@@ -129,22 +131,27 @@ function NuevoClienteRapido({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      toast.success('Cliente creado');
+      toast.success('Cliente creado y seleccionado para esta venta');
       onCrear(data.data);
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Error desconocido');
     } finally {
       setGuardando(false);
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center p-4" onClick={onCerrar}>
-      <div className="card-boutique w-full max-w-xs p-5" onClick={(e) => e.stopPropagation()}>
-        <h3 className="font-playfair font-bold text-[#2C2C2C] mb-4">Nuevo cliente rápido</h3>
+    <Dialog open onOpenChange={(v) => !v && onCerrar()}>
+      <DialogContent className="max-w-xs rounded-2xl border border-blush p-5">
+        <div className="flex items-center justify-between mb-4">
+          <DialogTitle className="font-playfair font-bold text-boutique-dark">Nuevo cliente rápido</DialogTitle>
+          <button onClick={onCerrar} aria-label="Cerrar" className="text-boutique-gray-mid hover:text-boutique-danger transition-colors">
+            <X size={16} />
+          </button>
+        </div>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <label className="block text-xs font-medium text-[#2C2C2C] mb-1">Nombre *</label>
+            <label className="block text-xs font-medium text-boutique-dark mb-1">Nombre *</label>
             <input
               type="text"
               value={nombre}
@@ -156,7 +163,7 @@ function NuevoClienteRapido({
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-[#2C2C2C] mb-1">Teléfono</label>
+            <label className="block text-xs font-medium text-boutique-dark mb-1">Teléfono</label>
             <input
               type="tel"
               value={telefono}
@@ -165,16 +172,11 @@ function NuevoClienteRapido({
               placeholder="5555-0000"
             />
           </div>
-          <div className="flex gap-2 pt-1">
-            <button type="button" onClick={onCerrar} className="flex-1 py-2 text-sm text-[#9E9E9E] hover:text-[#2C2C2C] transition-colors">
-              Cancelar
-            </button>
-            <button type="submit" disabled={guardando} className="flex-1 btn-boutique-primary py-2 text-sm disabled:opacity-60">
-              {guardando ? '...' : 'Crear'}
-            </button>
-          </div>
+          <button type="submit" disabled={guardando} className="w-full btn-boutique-primary py-2 text-sm disabled:opacity-60">
+            {guardando ? '...' : 'Crear'}
+          </button>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

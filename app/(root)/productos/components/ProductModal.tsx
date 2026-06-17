@@ -1,5 +1,6 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -20,16 +21,12 @@ interface Props {
 export function ProductModal({ open, onClose, onSuccess, productoId }: Props) {
   const [cargandoDatos, setCargandoDatos] = useState(false);
   const [productoInicial, setProductoInicial] = useState<ProductoData | undefined>();
+  const [errorCarga, setErrorCarga] = useState(false);
 
-  useEffect(() => {
-    if (!open) {
-      setProductoInicial(undefined);
-      return;
-    }
-    if (!productoId) return;
-
+  const cargarProducto = useCallback((id: string) => {
     setCargandoDatos(true);
-    fetch(`/api/productos/${productoId}`)
+    setErrorCarga(false);
+    fetch(`/api/productos/${id}`)
       .then((r) => r.json())
       .then((d) => {
         const p = d.data;
@@ -53,21 +50,31 @@ export function ProductModal({ open, onClose, onSuccess, productoId }: Props) {
           })),
         });
       })
-      .catch(() => {})
+      .catch(() => setErrorCarga(true))
       .finally(() => setCargandoDatos(false));
-  }, [open, productoId]);
+  }, []);
+
+  useEffect(() => {
+    if (!open) {
+      setProductoInicial(undefined);
+      setErrorCarga(false);
+      return;
+    }
+    if (!productoId) return;
+    cargarProducto(productoId);
+  }, [open, productoId, cargarProducto]);
 
   const modo = productoId ? 'editar' : 'crear';
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-2xl w-full max-h-[92vh] flex flex-col p-0 gap-0 rounded-2xl border border-[#F2C4CE] bg-white overflow-hidden">
+      <DialogContent className="max-w-2xl w-full max-h-[92vh] flex flex-col p-0 gap-0 rounded-2xl border border-blush bg-white overflow-hidden">
         {/* Header fijo */}
-        <DialogHeader className="px-6 py-4 border-b border-[#F2C4CE] bg-[#FAFAFA] flex-shrink-0">
-          <DialogTitle className="font-playfair text-xl font-bold text-[#2C2C2C]">
+        <DialogHeader className="px-6 py-4 border-b border-blush bg-boutique-white flex-shrink-0">
+          <DialogTitle className="font-playfair text-xl font-bold text-boutique-dark">
             {modo === 'crear' ? 'Nuevo producto' : 'Editar producto'}
           </DialogTitle>
-          <DialogDescription className="text-xs text-[#9E9E9E]">
+          <DialogDescription className="text-xs text-boutique-gray-mid">
             {modo === 'crear'
               ? 'Completa los datos y agrega las variantes de talla y color.'
               : 'Modifica los datos del producto y guarda los cambios.'}
@@ -77,8 +84,28 @@ export function ProductModal({ open, onClose, onSuccess, productoId }: Props) {
         {/* Contenido scrollable */}
         <div className="flex-1 overflow-y-auto px-6 py-5">
           {cargandoDatos ? (
-            <div className="flex items-center justify-center py-20">
-              <div className="w-8 h-8 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
+            <div className="space-y-4 animate-pulse">
+              <div className="h-32 rounded-xl bg-blush/20" />
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="space-y-1.5">
+                  <div className="h-3 w-24 rounded bg-blush/40" />
+                  <div className="h-9 rounded-xl bg-blush/20" />
+                </div>
+              ))}
+            </div>
+          ) : errorCarga ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
+              <AlertTriangle size={28} className="text-boutique-danger" />
+              <div>
+                <p className="text-sm font-semibold text-boutique-dark">No pudimos cargar el producto</p>
+                <p className="text-xs text-[#757575] mt-1">Verifica tu conexión e intenta de nuevo.</p>
+              </div>
+              <button
+                onClick={() => productoId && cargarProducto(productoId)}
+                className="btn-boutique-primary text-sm px-4 py-2 flex items-center gap-2"
+              >
+                <RefreshCw size={14} /> Reintentar
+              </button>
             </div>
           ) : (
             <ProductForm

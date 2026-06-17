@@ -27,19 +27,19 @@ export function SesionModal({ onSeleccionar }: Props) {
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#F8E1E7] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-blush-light flex items-center justify-center p-4">
       <div className="card-boutique w-full max-w-sm p-8 text-center">
-        <div className="w-14 h-14 rounded-full bg-[#F2C4CE] flex items-center justify-center mx-auto mb-4">
-          <Store size={24} className="text-[#C9A84C]" />
+        <div aria-hidden="true" className="w-14 h-14 rounded-full bg-blush flex items-center justify-center mx-auto mb-4">
+          <Store size={24} className="text-gold" aria-hidden="true" />
         </div>
-        <h1 className="font-playfair text-2xl font-bold text-[#2C2C2C] mb-1">
+        <h1 className="font-playfair text-2xl font-bold text-boutique-dark mb-1">
           {config?.nombreComercial ?? "Nohemy's Boutique"}
         </h1>
-        <p className="text-sm text-[#9E9E9E] mb-6">Selecciona tu nombre para iniciar turno</p>
+        <p className="text-sm text-boutique-gray-mid mb-6">Selecciona tu nombre para iniciar turno</p>
 
         {cargando ? (
           <div className="flex justify-center py-4">
-            <div className="w-6 h-6 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
+            <div role="status" aria-label="Cargando operadores" className="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin motion-reduce:animate-none motion-reduce:opacity-50" />
           </div>
         ) : (
           <div className="space-y-2">
@@ -47,13 +47,13 @@ export function SesionModal({ onSeleccionar }: Props) {
               <button
                 key={c.id}
                 onClick={() => onSeleccionar(c)}
-                className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-[#E8D5A3] hover:bg-[#F8E1E7] hover:border-[#C9A84C] transition-all text-left"
+                className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-gold-light hover:bg-blush-light hover:border-gold transition-all text-left"
               >
                 <div>
-                  <p className="font-medium text-[#2C2C2C] text-sm">{c.nombre}</p>
-                  <p className="text-xs text-[#9E9E9E]">{ROL_LABEL[c.rol] ?? c.rol}</p>
+                  <p className="font-medium text-boutique-dark text-sm">{c.nombre}</p>
+                  <p className="text-xs text-boutique-gray-mid">{ROL_LABEL[c.rol] ?? c.rol}</p>
                 </div>
-                <div className="w-8 h-8 rounded-full bg-[#F2C4CE] flex items-center justify-center text-[#C9A84C] font-bold text-sm font-playfair">
+                <div aria-hidden="true" className="w-8 h-8 rounded-full bg-blush flex items-center justify-center text-gold font-bold text-sm font-playfair">
                   {c.nombre.charAt(0).toUpperCase()}
                 </div>
               </button>

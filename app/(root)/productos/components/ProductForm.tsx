@@ -64,9 +64,12 @@ export function ProductForm({ modo, productoInicial, onSuccess, onCancel }: Prop
 
   const cargarCategorias = useCallback(() => {
     fetch('/api/categorias')
-      .then((r) => r.json())
-      .then((d) => setCategorias(d.data ?? []))
-      .catch(() => toast.error('No se pudieron cargar las categorías'));
+      .then(async (r) => {
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || 'Error al cargar categorías');
+        setCategorias(Array.isArray(d.data) ? d.data : []);
+      })
+      .catch(() => toast.error('No se pudieron cargar las categorías. Intenta recargar la página.'));
   }, []);
 
   useEffect(() => {
@@ -83,6 +86,7 @@ export function ProductForm({ modo, productoInicial, onSuccess, onCancel }: Prop
   const puedeVerCosto = rol === 'ADMIN' || rol === 'SUPERVISOR';
 
   async function crearCategoria() {
+    if (creandoCategoria) return;
     if (!nuevaCategoriaNombre.trim() || nuevaCategoriaNombre.trim().length < 2) {
       toast.error('El nombre de la categoría debe tener al menos 2 caracteres');
       return;
@@ -96,7 +100,7 @@ export function ProductForm({ modo, productoInicial, onSuccess, onCancel }: Prop
       });
       const data = await res.json();
       if (!res.ok) {
-        toast.error(data.error);
+        toast.error(data.error || 'No se pudo crear la categoría');
         return;
       }
       cargarCategorias();
@@ -105,8 +109,8 @@ export function ProductForm({ modo, productoInicial, onSuccess, onCancel }: Prop
       setNuevaCategoriaNombre('');
       setNuevaCategoriaIcono('');
       toast.success('Categoría creada correctamente');
-    } catch (err: any) {
-      toast.error('Error: ' + err.message);
+    } catch {
+      toast.error('Error de conexión al crear la categoría. Intenta de nuevo.');
     } finally {
       setCreandoCategoria(false);
     }
@@ -154,10 +158,30 @@ export function ProductForm({ modo, productoInicial, onSuccess, onCancel }: Prop
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (cargando) return;
+
+    if (!nombre.trim() || nombre.trim().length < 2) {
+      toast.error('El nombre debe tener al menos 2 caracteres');
+      return;
+    }
+    if (!categoriaId) {
+      toast.error('Debe seleccionar una categoría');
+      return;
+    }
+    if (puedeVerCosto && precioVenta <= costo) {
+      toast.error('El precio de venta debe ser mayor al costo');
+      return;
+    }
 
     const variantesConDatos = variantes.filter((v) => v.sku.trim());
     if (variantes.length > 0 && variantesConDatos.length === 0) {
       toast.error('Cada variante debe tener un SKU');
+      return;
+    }
+    const skus = variantesConDatos.map((v) => v.sku.trim().toUpperCase());
+    const skusDuplicados = Array.from(new Set(skus.filter((s, i) => skus.indexOf(s) !== i)));
+    if (skusDuplicados.length > 0) {
+      toast.error(`SKUs duplicados en la lista: ${skusDuplicados.join(', ')}`);
       return;
     }
 
@@ -171,7 +195,7 @@ export function ProductForm({ modo, productoInicial, onSuccess, onCancel }: Prop
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          nombre,
+          nombre: nombre.trim(),
           descripcion,
           imagenUrl,
           categoriaId,
@@ -181,15 +205,20 @@ export function ProductForm({ modo, productoInicial, onSuccess, onCancel }: Prop
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      let data: any = null;
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error('Respuesta inesperada del servidor');
+      }
+      if (!res.ok) throw new Error(data?.error || 'No se pudo guardar el producto');
 
       toast.success(
         modo === 'crear' ? 'Producto creado exitosamente' : 'Producto actualizado'
       );
       onSuccess();
-    } catch (err: any) {
-      toast.error('Error: ' + err.message);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Error de conexión al guardar el producto');
     } finally {
       setCargando(false);
     }
@@ -199,7 +228,7 @@ export function ProductForm({ modo, productoInicial, onSuccess, onCancel }: Prop
     <form onSubmit={handleSubmit} className="space-y-5">
       {/* Imagen */}
       <div>
-        <label className="block text-xs font-medium text-[#2C2C2C] mb-1.5">
+        <label className="block text-xs font-medium text-boutique-dark mb-1.5">
           Imagen del producto
         </label>
         <ImageUploader value={imagenUrl} onChange={setImagenUrl} />
@@ -208,7 +237,7 @@ export function ProductForm({ modo, productoInicial, onSuccess, onCancel }: Prop
       {/* Datos básicos */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="sm:col-span-2">
-          <label className="block text-xs font-medium text-[#2C2C2C] mb-1">
+          <label className="block text-xs font-medium text-boutique-dark mb-1">
             Nombre *
           </label>
           <input
@@ -218,12 +247,13 @@ export function ProductForm({ modo, productoInicial, onSuccess, onCancel }: Prop
             placeholder="Ej: Vestido floral manga corta"
             required
             minLength={2}
+            maxLength={80}
             className="w-full input-boutique"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-[#2C2C2C] mb-1">
+          <label className="block text-xs font-medium text-boutique-dark mb-1">
             Categoría *
           </label>
           {nuevaCategoria ? (
@@ -242,6 +272,7 @@ export function ProductForm({ modo, productoInicial, onSuccess, onCancel }: Prop
                 onChange={(e) => setNuevaCategoriaNombre(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), crearCategoria())}
                 placeholder="Nombre"
+                maxLength={40}
                 autoFocus
                 className="flex-1 input-boutique"
               />
@@ -249,14 +280,14 @@ export function ProductForm({ modo, productoInicial, onSuccess, onCancel }: Prop
                 type="button"
                 onClick={crearCategoria}
                 disabled={creandoCategoria}
-                className="w-9 h-9 flex items-center justify-center rounded-xl bg-[#6DBF94] text-white disabled:opacity-50 flex-shrink-0"
+                className="w-9 h-9 flex items-center justify-center rounded-xl bg-boutique-success text-white disabled:opacity-50 flex-shrink-0"
               >
                 <Check size={15} />
               </button>
               <button
                 type="button"
                 onClick={() => { setNuevaCategoria(false); setNuevaCategoriaNombre(''); setNuevaCategoriaIcono(''); }}
-                className="w-9 h-9 flex items-center justify-center rounded-xl border border-[#E8D5A3] text-[#9E9E9E] flex-shrink-0"
+                className="w-9 h-9 flex items-center justify-center rounded-xl border border-gold-light text-boutique-gray-mid flex-shrink-0"
               >
                 <X size={15} />
               </button>
@@ -280,7 +311,7 @@ export function ProductForm({ modo, productoInicial, onSuccess, onCancel }: Prop
                 type="button"
                 onClick={() => setNuevaCategoria(true)}
                 title="Nueva categoría"
-                className="w-9 h-9 flex items-center justify-center rounded-xl border-2 border-[#E8D5A3] text-[#C9A84C] hover:border-[#C9A84C] transition-colors flex-shrink-0"
+                className="w-9 h-9 flex items-center justify-center rounded-xl border-2 border-gold-light text-gold hover:border-gold transition-colors flex-shrink-0"
               >
                 <Plus size={15} />
               </button>
@@ -289,7 +320,7 @@ export function ProductForm({ modo, productoInicial, onSuccess, onCancel }: Prop
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-[#2C2C2C] mb-1">
+          <label className="block text-xs font-medium text-boutique-dark mb-1">
             Descripción
           </label>
           <input
@@ -297,6 +328,7 @@ export function ProductForm({ modo, productoInicial, onSuccess, onCancel }: Prop
             value={descripcion}
             onChange={(e) => setDescripcion(e.target.value)}
             placeholder="Breve descripción"
+            maxLength={200}
             className="w-full input-boutique"
           />
         </div>
@@ -306,40 +338,40 @@ export function ProductForm({ modo, productoInicial, onSuccess, onCancel }: Prop
       <div className={`grid gap-3 ${puedeVerCosto ? 'grid-cols-3' : 'grid-cols-1'}`}>
         {puedeVerCosto && (
           <div>
-            <label className="block text-xs font-medium text-[#2C2C2C] mb-1">Costo (Q) *</label>
+            <label className="block text-xs font-medium text-boutique-dark mb-1">Costo (Q) *</label>
             <input
               type="number"
               min={0}
               step={0.01}
               value={costo}
-              onChange={(e) => setCosto(parseFloat(e.target.value) || 0)}
+              onChange={(e) => setCosto(Math.max(0, parseFloat(e.target.value) || 0))}
               required
               className="w-full input-boutique font-mono text-center"
             />
           </div>
         )}
         <div>
-          <label className="block text-xs font-medium text-[#2C2C2C] mb-1">Precio venta (Q) *</label>
+          <label className="block text-xs font-medium text-boutique-dark mb-1">Precio venta (Q) *</label>
           <input
             type="number"
             min={0.01}
             step={0.01}
             value={precioVenta}
-            onChange={(e) => setPrecioVenta(parseFloat(e.target.value) || 0)}
+            onChange={(e) => setPrecioVenta(Math.max(0, parseFloat(e.target.value) || 0))}
             required
             className="w-full input-boutique font-mono text-center"
           />
         </div>
         {puedeVerCosto && (
           <div>
-            <label className="block text-xs font-medium text-[#2C2C2C] mb-1">Margen</label>
+            <label className="block text-xs font-medium text-boutique-dark mb-1">Margen</label>
             <div
               className={`input-boutique font-mono font-bold text-center ${
                 margen < 0
-                  ? 'text-[#E57373]'
+                  ? 'text-boutique-danger'
                   : margen < 20
-                  ? 'text-[#F5C842]'
-                  : 'text-[#6DBF94]'
+                  ? 'text-boutique-warning'
+                  : 'text-boutique-success'
               }`}
             >
               {margen.toFixed(1)}%
@@ -348,9 +380,9 @@ export function ProductForm({ modo, productoInicial, onSuccess, onCancel }: Prop
         )}
       </div>
       {puedeVerCosto && costo > 0 && precioVenta > 0 && (
-        <p className="text-xs text-[#9E9E9E] -mt-3">
+        <p className="text-xs text-boutique-gray-mid -mt-3">
           Ganancia por unidad:{' '}
-          <span className="font-mono font-medium text-[#2C2C2C]">
+          <span className="font-mono font-medium text-boutique-dark">
             {formatPrecio(precioVenta - costo)}
           </span>
         </p>
@@ -359,7 +391,7 @@ export function ProductForm({ modo, productoInicial, onSuccess, onCancel }: Prop
       {/* Variantes */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <label className="block text-xs font-medium text-[#2C2C2C]">
+          <label className="block text-xs font-medium text-boutique-dark">
             Variantes (Tallas / Colores)
           </label>
           <div className="flex gap-2">
@@ -392,17 +424,17 @@ export function ProductForm({ modo, productoInicial, onSuccess, onCancel }: Prop
           </div>
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-[#F2C4CE]">
+        <div className="overflow-x-auto rounded-xl border border-blush">
           <table className="w-full text-sm min-w-[560px]">
             <thead>
-              <tr className="bg-[#F8E1E7]">
-                <th className="px-2.5 py-2 text-left text-xs font-medium text-[#2C2C2C]">SKU *</th>
-                <th className="px-2.5 py-2 text-left text-xs font-medium text-[#2C2C2C]">Talla</th>
-                <th className="px-2.5 py-2 text-left text-xs font-medium text-[#2C2C2C]">Color</th>
-                <th className="px-2.5 py-2 text-left text-xs font-medium text-[#2C2C2C]">HEX</th>
-                <th className="px-2.5 py-2 text-center text-xs font-medium text-[#2C2C2C]">Precio</th>
-                <th className="px-2.5 py-2 text-center text-xs font-medium text-[#2C2C2C]">Stock</th>
-                <th className="px-2.5 py-2 text-center text-xs font-medium text-[#2C2C2C]">Mín.</th>
+              <tr className="bg-blush-light">
+                <th className="px-2.5 py-2 text-left text-xs font-medium text-boutique-dark">SKU *</th>
+                <th className="px-2.5 py-2 text-left text-xs font-medium text-boutique-dark">Talla</th>
+                <th className="px-2.5 py-2 text-left text-xs font-medium text-boutique-dark">Color</th>
+                <th className="px-2.5 py-2 text-left text-xs font-medium text-boutique-dark">HEX</th>
+                <th className="px-2.5 py-2 text-center text-xs font-medium text-boutique-dark">Precio</th>
+                <th className="px-2.5 py-2 text-center text-xs font-medium text-boutique-dark">Stock</th>
+                <th className="px-2.5 py-2 text-center text-xs font-medium text-boutique-dark">Mín.</th>
                 <th className="px-2.5 py-2" />
               </tr>
             </thead>
@@ -420,7 +452,7 @@ export function ProductForm({ modo, productoInicial, onSuccess, onCancel }: Prop
             </tbody>
           </table>
           {variantes.length === 0 && (
-            <p className="text-center text-xs text-[#9E9E9E] py-5">
+            <p className="text-center text-xs text-boutique-gray-mid py-5">
               Sin variantes. Haz clic en &quot;Agregar&quot; para añadir.
             </p>
           )}
@@ -428,11 +460,12 @@ export function ProductForm({ modo, productoInicial, onSuccess, onCancel }: Prop
       </div>
 
       {/* Botones */}
-      <div className="flex items-center gap-3 justify-end pt-2 border-t border-[#F2C4CE]">
+      <div className="flex items-center gap-3 justify-end pt-2 border-t border-blush">
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 text-sm text-[#9E9E9E] hover:text-[#2C2C2C] transition-colors"
+          disabled={cargando}
+          className="px-4 py-2 text-sm text-boutique-gray-mid hover:text-boutique-dark transition-colors disabled:opacity-60"
         >
           Cancelar
         </button>

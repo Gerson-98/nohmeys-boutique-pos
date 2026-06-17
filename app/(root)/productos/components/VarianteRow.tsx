@@ -21,7 +21,7 @@ interface Props {
 
 export function VarianteRow({ index, variante, precioProducto, onChange, onRemove }: Props) {
   return (
-    <tr className="border-b border-[#F2C4CE] hover:bg-[#F8E1E7]/40">
+    <tr className="border-b border-blush hover:bg-blush-light/40">
       <td className="px-3 py-2">
         <input
           type="text"
@@ -55,9 +55,9 @@ export function VarianteRow({ index, variante, precioProducto, onChange, onRemov
             type="color"
             value={variante.colorHex || '#F2C4CE'}
             onChange={(e) => onChange(index, 'colorHex', e.target.value)}
-            className="w-8 h-8 rounded-lg border border-[#E8D5A3] cursor-pointer p-0.5"
+            className="w-8 h-8 rounded-lg border border-gold-light cursor-pointer p-0.5"
           />
-          <span className="text-xs font-mono text-[#9E9E9E]">{variante.colorHex || '—'}</span>
+          <span className="text-xs font-mono text-boutique-gray-mid">{variante.colorHex || '—'}</span>
         </div>
       </td>
       <td className="px-3 py-2">
@@ -95,7 +95,7 @@ export function VarianteRow({ index, variante, precioProducto, onChange, onRemov
         <button
           type="button"
           onClick={() => onRemove(index)}
-          className="p-1.5 rounded-lg hover:bg-[#E57373]/10 text-[#E57373] transition-colors"
+          className="p-1.5 rounded-lg hover:bg-boutique-danger/10 text-boutique-danger transition-colors min-w-[44px] min-h-[44px]"
         >
           <Trash2 size={14} />
         </button>
