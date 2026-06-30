@@ -51,6 +51,7 @@ export interface VentaDetalle {
 interface Props {
   venta: VentaDetalle | null;
   onNuevaVenta: () => void;
+  modoReimpresion?: boolean;
 }
 
 // Ticket imprimible 80mm con forwardRef para react-to-print
@@ -60,39 +61,39 @@ const Ticket = React.forwardRef<HTMLDivElement, { venta: VentaDetalle; config: S
     return (
       <div
         ref={ref}
-        className="w-full max-w-[80mm] mx-auto bg-white text-boutique-dark text-[11px] font-mono leading-snug p-3"
+        className="w-full max-w-[80mm] mx-auto bg-white text-black text-[11px] font-mono leading-snug p-3"
       >
         <div className="text-center mb-3">
           <p className="font-serif text-[15px] font-bold tracking-wide">{config?.nombreComercial ?? "Nohemy's Boutique"}</p>
-          {config?.direccion && <p className="text-[9px] text-gray-500">{config.direccion}</p>}
-          {config?.nit && <p className="text-[9px] text-gray-500">NIT: {config.nit}</p>}
-          <p className="text-[9px] text-gray-500">Guatemala, GT · {fecha}</p>
+          {config?.direccion && <p className="text-[9px] text-black">{config.direccion}</p>}
+          {config?.nit && <p className="text-[9px] text-black">NIT: {config.nit}</p>}
+          <p className="text-[9px] text-black">Guatemala, GT · {fecha}</p>
         </div>
-        <div className="border-t border-dashed border-gray-300 my-2" />
+        <div className="border-t border-dashed border-black my-2" />
 
         <div className="space-y-0.5 text-[10px]">
           <div className="flex justify-between">
-            <span className="text-gray-500">Ticket:</span>
+            <span className="text-black">Ticket:</span>
             <span className="font-bold">{venta.numeroTicket}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-500">Cajero:</span>
+            <span className="text-black">Cajero:</span>
             <span>{venta.cajero.nombre}</span>
           </div>
           {venta.cliente && (
             <div className="flex justify-between">
-              <span className="text-gray-500">Cliente:</span>
+              <span className="text-black">Cliente:</span>
               <span>{venta.cliente.nombre}</span>
             </div>
           )}
         </div>
 
-        <div className="border-t border-dashed border-gray-300 my-2" />
+        <div className="border-t border-dashed border-black my-2" />
 
         {/* Productos */}
         <table className="w-full text-[10px]">
           <thead>
-            <tr className="border-b border-gray-200">
+            <tr className="border-b border-black">
               <th className="text-left pb-1">Producto</th>
               <th className="text-center pb-1">Qty</th>
               <th className="text-right pb-1">Subtotal</th>
@@ -103,11 +104,11 @@ const Ticket = React.forwardRef<HTMLDivElement, { venta: VentaDetalle; config: S
               <tr key={i} className="align-top">
                 <td className="py-0.5 pr-1">
                   <p>{d.variante.producto.nombre}</p>
-                  <p className="text-gray-400">
+                  <p className="text-black">
                     {[d.variante.talla, d.variante.color].filter(Boolean).join(' / ')}{' '}
                     · {d.variante.sku}
                   </p>
-                  <p className="text-gray-400">
+                  <p className="text-black">
                     {formatPrecio(d.precioUnitario)}{d.descuento > 0 ? ` (-${formatPrecio(d.descuento)})` : ''}
                   </p>
                 </td>
@@ -118,46 +119,46 @@ const Ticket = React.forwardRef<HTMLDivElement, { venta: VentaDetalle; config: S
           </tbody>
         </table>
 
-        <div className="border-t border-dashed border-gray-300 my-2" />
+        <div className="border-t border-dashed border-black my-2" />
 
         {/* Totales */}
         <div className="space-y-0.5 text-[10px]">
           <div className="flex justify-between">
-            <span className="text-gray-500">Subtotal</span>
+            <span className="text-black">Subtotal</span>
             <span>{formatPrecio(venta.subtotal)}</span>
           </div>
           {venta.descuentoGlobal > 0 && (
             <div className="flex justify-between">
-              <span className="text-gray-500">Descuento</span>
+              <span className="text-black">Descuento</span>
               <span>-{formatPrecio(venta.descuentoGlobal)}</span>
             </div>
           )}
-          <div className="flex justify-between font-bold text-[12px] border-t border-gray-200 pt-1 mt-1">
+          <div className="flex justify-between font-bold text-[12px] border-t border-black pt-1 mt-1">
             <span>TOTAL</span>
             <span>{formatPrecio(venta.total)}</span>
           </div>
         </div>
 
-        <div className="border-t border-dashed border-gray-300 my-2" />
+        <div className="border-t border-dashed border-black my-2" />
 
         {/* Pago */}
         <div className="space-y-0.5 text-[10px]">
           {venta.pagos.length > 1 && (
-            <div className="flex justify-between text-gray-400">
+            <div className="flex justify-between text-black">
               <span>Pago mixto</span>
             </div>
           )}
           {venta.pagos.map((p, i) => (
             <div key={i}>
               <div className="flex justify-between">
-                <span className="text-gray-500">
+                <span className="text-black">
                   {METODO_LABEL[p.metodo] ?? p.metodo}
                   {p.banco ? ` (${p.banco.nombre})` : ''}
                 </span>
                 <span>{formatPrecio(p.monto)}</span>
               </div>
               {p.metodo === 'TRANSFERENCIA' && (
-                <div className="text-gray-400 pl-2">
+                <div className="text-black pl-2">
                   {p.transferencia?.referencia && <p>Ref: {p.transferencia.referencia}</p>}
                   {p.transferencia?.estado === 'PENDIENTE_VALIDACION' && (
                     <p className="font-bold">** Pendiente de validación **</p>
@@ -165,7 +166,7 @@ const Ticket = React.forwardRef<HTMLDivElement, { venta: VentaDetalle; config: S
                 </div>
               )}
               {p.metodo === 'TARJETA' && p.referencia && (
-                <div className="text-gray-400 pl-2">
+                <div className="text-black pl-2">
                   <p>Ref: {p.referencia}</p>
                 </div>
               )}
@@ -173,14 +174,14 @@ const Ticket = React.forwardRef<HTMLDivElement, { venta: VentaDetalle; config: S
           ))}
           {venta.cambio > 0 && (
             <div className="flex justify-between font-bold">
-              <span className="text-gray-500">Cambio</span>
+              <span className="text-black">Cambio</span>
               <span>{formatPrecio(venta.cambio)}</span>
             </div>
           )}
         </div>
 
-        <div className="border-t border-dashed border-gray-300 my-2" />
-        <div className="text-center text-[9px] text-gray-400 space-y-0.5">
+        <div className="border-t border-dashed border-black my-2" />
+        <div className="text-center text-[9px] text-black space-y-0.5">
           <p>¡Gracias por tu compra!</p>
           <p>{config?.politicaCambios || 'Cambios y devoluciones en 15 días con ticket original.'}</p>
         </div>
@@ -190,7 +191,7 @@ const Ticket = React.forwardRef<HTMLDivElement, { venta: VentaDetalle; config: S
 );
 Ticket.displayName = 'Ticket';
 
-export function ReceiptModal({ venta, onNuevaVenta }: Props) {
+export function ReceiptModal({ venta, onNuevaVenta, modoReimpresion = false }: Props) {
   const config = useShopConfig();
   const ticketRef = useRef<HTMLDivElement>(null);
 
@@ -221,7 +222,7 @@ export function ReceiptModal({ venta, onNuevaVenta }: Props) {
   <title>Ticket-${venta.numeroTicket}</title>
   <style>
     ${estilos}
-    body { margin: 0; padding: 8px; font-family: monospace; background: white; }
+    body { margin: 0; padding: 8px; font-family: monospace; background: white; color: black; }
     @page { size: 80mm auto; margin: 0; }
     @media print { body { padding: 0; } }
   </style>
@@ -240,12 +241,16 @@ export function ReceiptModal({ venta, onNuevaVenta }: Props) {
   return (
     <Dialog open={!!venta} onOpenChange={(v) => !v && onNuevaVenta()}>
       <DialogContent className="max-w-sm rounded-2xl border border-blush p-0 overflow-hidden max-h-[90vh] flex flex-col">
-        {/* Header éxito */}
+        {/* Header */}
         <div className="flex flex-col items-center gap-2 p-5 border-b border-blush">
-          <div className="w-12 h-12 rounded-full bg-boutique-success/20 flex items-center justify-center">
-            <CheckCircle size={26} className="text-boutique-success" />
-          </div>
-          <DialogTitle className="font-playfair text-xl font-bold text-boutique-dark">¡Venta completada!</DialogTitle>
+          {!modoReimpresion && (
+            <div className="w-12 h-12 rounded-full bg-boutique-success/20 flex items-center justify-center">
+              <CheckCircle size={26} className="text-boutique-success" />
+            </div>
+          )}
+          <DialogTitle className="font-playfair text-xl font-bold text-boutique-dark">
+            {modoReimpresion ? 'Comprobante de venta' : '¡Venta completada!'}
+          </DialogTitle>
           <p className="text-xs font-mono text-boutique-gray-dark">{venta.numeroTicket}</p>
           <p className="text-2xl font-mono font-bold text-gold">{formatPrecio(venta.total)}</p>
         </div>
@@ -277,8 +282,7 @@ export function ReceiptModal({ venta, onNuevaVenta }: Props) {
             onClick={onNuevaVenta}
             className="w-full btn-boutique-primary flex items-center justify-center gap-2 py-2.5"
           >
-            <ShoppingBag size={15} />
-            Nueva venta
+            {modoReimpresion ? 'Cerrar' : <><ShoppingBag size={15} /> Nueva venta</>}
           </button>
         </div>
       </DialogContent>

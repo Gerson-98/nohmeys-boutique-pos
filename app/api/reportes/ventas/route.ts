@@ -8,11 +8,12 @@ export async function GET(req: NextRequest) {
     const hasta = searchParams.get('hasta');
     const cajeroId = searchParams.get('cajeroId') || '';
     const metodo = searchParams.get('metodo') || '';
+    const q = searchParams.get('q') || '';
     const pagina = parseInt(searchParams.get('pagina') || '1');
     const limite = parseInt(searchParams.get('limite') || '25');
     const exportar = searchParams.get('exportar') === 'true';
 
-    const where: any = { estado: 'COMPLETADA' };
+    const where: any = {};
 
     if (desde || hasta) {
       where.createdAt = {};
@@ -32,6 +33,12 @@ export async function GET(req: NextRequest) {
     }
     if (cajeroId) where.cajeroId = cajeroId;
     if (metodo) where.metodoPago = metodo;
+    if (q) {
+      where.OR = [
+        { numeroTicket: { contains: q, mode: 'insensitive' } },
+        { cliente: { nombre: { contains: q, mode: 'insensitive' } } },
+      ];
+    }
 
     const [ventas, total, agregado] = await Promise.all([
       db.venta.findMany({

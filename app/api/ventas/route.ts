@@ -97,13 +97,32 @@ export async function POST(req: NextRequest) {
     }
 
     // Verificar que haya caja abierta
-    const cajaAbierta = await db.cierreCaja.findFirst({ where: { estado: 'ABIERTA' } });
+    const cajaAbierta = await db.cierreCaja.findFirst({
+      where: { estado: 'ABIERTA' },
+      include: { cajero: { select: { nombre: true, rol: true } } },
+    });
     if (!cajaAbierta) {
       return NextResponse.json(
         { error: 'No hay una caja abierta. Ve a Caja y abre el turno antes de vender.' },
         { status: 403 }
       );
     }
+
+    // Si el cajero que vende no es admin/supervisor, solo puede vender si la caja abierta es suya
+    const cajeroVendedor = await db.user.findUnique({
+      where: { id: cajeroId },
+      select: { rol: true },
+    });
+    if (cajeroVendedor?.rol === 'CAJERO' && cajaAbierta.cajeroId !== cajeroId) {
+      return NextResponse.json(
+        { error: `No puedes vender: la caja activa fue abierta por ${cajaAbierta.cajero.nombre}. Abre tu propia caja para poder vender.` },
+        { status: 403 }
+      );
+    }
+    // Admin/Supervisor también reciben aviso si la caja fue abierta por otro cajero
+    // (solo informativo: pueden vender igual, pero el sistema registra la venta en esa caja)
+    // No se bloquea al admin.
+
     const cajaId = cierreCajaId || cajaAbierta.id;
 
     // Verificar stock antes de la transacción

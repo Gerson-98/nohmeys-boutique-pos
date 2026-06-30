@@ -424,8 +424,18 @@ export function ProductForm({ modo, productoInicial, onSuccess, onCancel }: Prop
           </div>
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-blush">
-          <table className="w-full text-sm min-w-[560px]">
+        <div className="rounded-xl border border-blush">
+          <table className="w-full text-sm table-fixed">
+            <colgroup>
+              <col style={{ width: '22%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '14%' }} />
+              <col style={{ width: '10%' }} />
+              <col style={{ width: '17%' }} />
+              <col style={{ width: '10%' }} />
+              <col style={{ width: '10%' }} />
+              <col style={{ width: '5%' }} />
+            </colgroup>
             <thead>
               <tr className="bg-blush-light">
                 <th className="px-2.5 py-2 text-left text-xs font-medium text-boutique-dark">SKU *</th>

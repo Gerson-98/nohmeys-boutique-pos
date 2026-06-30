@@ -37,16 +37,15 @@ export function SearchInput({ search }: { search?: string }) {
   }, [query, pathname, router, search]); // Run the effect when query, pathname, router, or search changes
 
   return (
-    <>
-      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />{' '}
-      {/* Render the Search icon */}
+    <div className="relative">
+      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
       <Input
         value={text}
         onChange={(e) => setText(e.target.value)}
         type="search"
         placeholder="Search..."
-        className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[320px]" // Render the Input component with specific styles
+        className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[320px]"
       />
-    </>
+    </div>
   );
 }

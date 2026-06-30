@@ -1,20 +1,23 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
-import { Search, Package, ScanLine, CheckCircle2, ShoppingCart } from 'lucide-react';
+import { Search, Package, ScanLine, CheckCircle2, ShoppingCart, Eye } from 'lucide-react';
 import { formatPrecio, badgeStock } from '@/lib/boutique';
 import type { ProductoPOS } from '../types';
+import { ProductPreviewModal } from '@/components/boutique/ProductPreviewModal';
 
 interface Props {
   onAgregarProducto: (producto: ProductoPOS) => void;
+  reloadKey?: number;
 }
 
-export function ProductSearch({ onAgregarProducto }: Props) {
+export function ProductSearch({ onAgregarProducto, reloadKey }: Props) {
   const [q, setQ] = useState('');
   const [categoriaId, setCategoriaId] = useState('');
   const [categorias, setCategorias] = useState<{ id: string; nombre: string; icono: string | null }[]>([]);
   const [productos, setProductos] = useState<ProductoPOS[]>([]);
   const [cargando, setCargando] = useState(false);
+  const [preview, setPreview] = useState<ProductoPOS | null>(null);
   // Scan feedback
   const [scanFeedback, setScanFeedback] = useState<'ok' | 'error' | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -29,6 +32,12 @@ export function ProductSearch({ onAgregarProducto }: Props) {
     inputRef.current?.focus();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Refresca el catálogo cuando se completa una venta
+  useEffect(() => {
+    if (reloadKey && reloadKey > 0) buscar(q, categoriaId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reloadKey]);
 
   const buscar = useCallback(async (query: string, catId: string) => {
     setCargando(true);
@@ -117,6 +126,7 @@ export function ProductSearch({ onAgregarProducto }: Props) {
   }
 
   return (
+    <>
     <div className="flex flex-col h-full">
       {/* Buscador */}
       <div className="px-4 pt-4 pb-3 border-b border-blush bg-white space-y-3 flex-shrink-0">
@@ -200,25 +210,28 @@ export function ProductSearch({ onAgregarProducto }: Props) {
                 : 2;
               const { color: stockColor } = badgeStock(p.stockTotal, stockMin);
               return (
-                <button
+                <div
                   key={p.id}
-                  onClick={() => !agotado && onAgregarProducto(p)}
-                  disabled={agotado}
-                  className={`group flex flex-col text-left rounded-xl overflow-hidden border transition-all active:scale-95
+                  className={`group flex flex-col text-left rounded-xl overflow-hidden border transition-all
                     ${agotado
-                      ? 'border-[#E2E8F0] opacity-60 cursor-not-allowed'
-                      : 'border-blush hover:border-gold hover:shadow-md cursor-pointer'
+                      ? 'border-[#E2E8F0] opacity-60'
+                      : 'border-blush hover:border-gold hover:shadow-md'
                     }`}
                 >
-                  {/* Imagen */}
-                  <div className="relative h-28 bg-blush-light flex items-center justify-center overflow-hidden w-full">
+                  {/* Imagen — clic abre preview */}
+                  <button
+                    type="button"
+                    onClick={() => setPreview(p)}
+                    className="relative h-28 bg-boutique-white flex items-center justify-center overflow-hidden w-full"
+                    aria-label={`Ver detalles de ${p.nombre}`}
+                  >
                     {p.imagenUrl ? (
                       <Image
                         src={p.imagenUrl}
                         alt={p.nombre}
                         fill
                         sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-                        className="object-cover"
+                        className="object-contain p-1"
                         unoptimized={p.imagenUrl.startsWith('/')}
                       />
                     ) : (
@@ -228,29 +241,44 @@ export function ProductSearch({ onAgregarProducto }: Props) {
                     <div className={`absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold ${stockColor}`}>
                       {agotado ? 'Agotado' : p.stockTotal}
                     </div>
-                    {/* Icono agregar */}
-                    {!agotado && (
-                      <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-gold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <ShoppingCart size={10} className="text-white" />
-                      </div>
-                    )}
-                  </div>
+                    {/* Icono preview */}
+                    <div className="absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-white/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm">
+                      <Eye size={10} className="text-boutique-dark" />
+                    </div>
+                  </button>
 
-                  {/* Info */}
-                  <div className="p-2 bg-white flex-1">
+                  {/* Info — clic agrega al carrito */}
+                  <button
+                    type="button"
+                    onClick={() => !agotado && onAgregarProducto(p)}
+                    disabled={agotado}
+                    className={`p-2 bg-white flex-1 text-left w-full active:scale-95 transition-all ${agotado ? 'cursor-not-allowed' : 'cursor-pointer hover:bg-blush-light/30'}`}
+                  >
                     <p className="text-[11px] font-medium text-boutique-dark leading-snug line-clamp-2 mb-1">
                       {p.nombre}
                     </p>
-                    <p className="text-xs font-mono font-bold text-gold">
-                      {formatPrecio(p.precioVenta)}
-                    </p>
-                  </div>
-                </button>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-mono font-bold text-gold">
+                        {formatPrecio(p.precioVenta)}
+                      </p>
+                      {!agotado && (
+                        <ShoppingCart size={11} className="text-boutique-gray-mid opacity-0 group-hover:opacity-100 transition-opacity" />
+                      )}
+                    </div>
+                  </button>
+                </div>
               );
             })}
           </div>
         )}
       </div>
     </div>
+
+    <ProductPreviewModal
+      producto={preview}
+      onClose={() => setPreview(null)}
+      onAgregar={(p) => onAgregarProducto(p as ProductoPOS)}
+    />
+    </>
   );
 }

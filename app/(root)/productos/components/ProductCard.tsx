@@ -1,9 +1,10 @@
 'use client';
 import Image from 'next/image';
-import { Package, ToggleLeft, ToggleRight, Pencil } from 'lucide-react';
+import { Package, ToggleLeft, ToggleRight, Pencil, Eye } from 'lucide-react';
 import { formatPrecio, badgeStock } from '@/lib/boutique';
 import { toast } from 'react-toastify';
 import { useState } from 'react';
+import { ProductPreviewModal } from '@/components/boutique/ProductPreviewModal';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,6 +48,7 @@ export function ProductCard({
 }: Props) {
   const [toggling, setToggling] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const stockMinimo = variantes.length > 0
     ? Math.min(...variantes.map((v) => v.stockMinimo))
@@ -81,20 +83,31 @@ export function ProductCard({
 
   return (
     <div className={`card-boutique flex flex-col overflow-hidden transition-opacity ${!isActive ? 'opacity-60' : ''}`}>
-      {/* Imagen */}
-      <div className="relative h-44 bg-blush-light flex items-center justify-center overflow-hidden">
+      {/* Imagen — clic abre preview */}
+      <button
+        type="button"
+        onClick={() => setPreviewOpen(true)}
+        className="group relative h-44 bg-boutique-white flex items-center justify-center overflow-hidden w-full"
+        aria-label={`Ver detalles de ${nombre}`}
+      >
         {imagenUrl ? (
-          <Image src={imagenUrl} alt={nombre} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw" className="object-cover" />
+          <Image src={imagenUrl} alt={nombre} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw" className="object-contain p-2" unoptimized={imagenUrl.startsWith('/')} />
         ) : (
           <Package size={40} className="text-blush-dark" />
         )}
+        {/* Overlay preview */}
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+          <div className="w-9 h-9 rounded-full bg-white/90 shadow flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+            <Eye size={16} className="text-boutique-dark" />
+          </div>
+        </div>
         {/* Badge estado */}
         <div className="absolute top-2 right-2">
           <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${isActive ? 'bg-boutique-success text-white' : 'bg-boutique-gray-mid text-white'}`}>
             {isActive ? 'Activo' : 'Inactivo'}
           </span>
         </div>
-      </div>
+      </button>
 
       {/* Info */}
       <div className="flex flex-col flex-1 p-4 gap-2">
@@ -166,6 +179,12 @@ export function ProductCard({
           {isActive ? 'Desactivar' : 'Activar'}
         </button>
       </div>
+
+      {/* Preview modal */}
+      <ProductPreviewModal
+        producto={previewOpen ? { id, nombre, descripcion, imagenUrl, precioVenta, categoria, variantes, stockTotal } : null}
+        onClose={() => setPreviewOpen(false)}
+      />
 
       {/* Confirmación de desactivación */}
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>

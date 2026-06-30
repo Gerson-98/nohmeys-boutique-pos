@@ -2,15 +2,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   DollarSign, Lock, Unlock, RefreshCw, CreditCard, Banknote,
-  AlertTriangle, CheckCircle, ChevronDown, Wifi, X,
+  AlertTriangle, CheckCircle, ChevronDown, Wifi, X, History, Calendar,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { formatPrecio } from '@/lib/boutique';
 import { format, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-
-const SESSION_KEY = 'pos_cajero';
 
 interface Pago { metodo: string; monto: number; referencia?: string | null }
 interface DetalleItem {
@@ -41,11 +39,27 @@ interface ResumenCaja {
 
 interface CajaActual {
   id: string;
+  cajeroId: string;
   fondoInicial: number;
   abiertaEn: string;
   cajero: { nombre: string };
   resumen: ResumenCaja;
   ventas: VentaCaja[];
+}
+
+interface HistorialCaja {
+  id: string;
+  abiertaEn: string;
+  cerradaEn: string | null;
+  fondoInicial: number;
+  totalEfectivo: number | null;
+  totalTarjeta: number | null;
+  totalTransferencia: number | null;
+  efectivoFisico: number | null;
+  diferencia: number | null;
+  notas: string | null;
+  cajero: { nombre: string };
+  _count: { ventas: number };
 }
 
 const METODO_ICON: Record<string, React.ReactNode> = {
@@ -70,10 +84,45 @@ export default function CajaPage() {
   const [expandido, setExpandido] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
 
-  const cajeroStored = typeof window !== 'undefined' ? localStorage.getItem(SESSION_KEY) : null;
-  const cajero: { id: string; nombre: string } | null = (() => {
-    try { return cajeroStored ? JSON.parse(cajeroStored) : null; } catch { return null; }
-  })();
+  // Historial de cierres
+  const [tab, setTab] = useState<'actual' | 'historial'>('actual');
+  const [historial, setHistorial] = useState<HistorialCaja[]>([]);
+  const [historialMeta, setHistorialMeta] = useState<{ total: number; pagina: number; totalPaginas: number } | null>(null);
+  const [historialPag, setHistorialPag] = useState(1);
+  const [cargandoHistorial, setCargandoHistorial] = useState(false);
+  const [expandidoH, setExpandidoH] = useState<string | null>(null);
+  // Usuario de la sesión HTTP (no localStorage)
+  const [sesionUsuario, setSesionUsuario] = useState<{ id: string; nombre: string; rol: string } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((r) => r.json())
+      .then((d) => { if (d.user) setSesionUsuario({ id: d.user.userId, nombre: d.user.nombre, rol: d.user.rol }); })
+      .catch(() => {});
+  }, []);
+
+  const cajero = sesionUsuario;
+
+  const cargarHistorial = useCallback(async (pag = 1) => {
+    setCargandoHistorial(true);
+    try {
+      const res = await fetch(`/api/caja?historial=true&pagina=${pag}`);
+      const d = await res.json();
+      if (res.ok) {
+        setHistorial(d.data ?? []);
+        setHistorialMeta(d.meta ?? null);
+        setHistorialPag(pag);
+      }
+    } catch {
+      toast.error('Error al cargar historial de cajas');
+    } finally {
+      setCargandoHistorial(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (tab === 'historial') cargarHistorial(historialPag);
+  }, [tab]);
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -151,12 +200,108 @@ export default function CajaPage() {
             <h1 className="font-playfair text-2xl font-bold text-boutique-dark">Caja</h1>
             <p className="text-sm text-boutique-gray-mid mt-0.5">Gestión del turno de ventas</p>
           </div>
-          <button onClick={cargar} aria-label="Actualizar estado de caja" className="p-2 rounded-xl hover:bg-blush-light transition-colors min-w-[44px] min-h-[44px]">
+          <button onClick={tab === 'actual' ? cargar : () => cargarHistorial(historialPag)} aria-label="Actualizar" className="p-2 rounded-xl hover:bg-blush-light transition-colors min-w-[44px] min-h-[44px]">
             <RefreshCw size={16} className="text-boutique-gray-mid" aria-hidden="true" />
           </button>
         </div>
 
-        {cargando ? (
+        {/* Pestañas */}
+        <div className="flex border-b border-blush">
+          <button
+            onClick={() => setTab('actual')}
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${tab === 'actual' ? 'border-gold text-gold' : 'border-transparent text-boutique-gray-mid hover:text-boutique-dark'}`}
+          >
+            <DollarSign size={15} /> Caja actual
+          </button>
+          <button
+            onClick={() => setTab('historial')}
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${tab === 'historial' ? 'border-gold text-gold' : 'border-transparent text-boutique-gray-mid hover:text-boutique-dark'}`}
+          >
+            <History size={15} /> Historial de cierres
+          </button>
+        </div>
+
+        {tab === 'historial' ? (
+          /* ── TAB HISTORIAL DE CIERRES ── */
+          <div className="space-y-3">
+            {cargandoHistorial ? (
+              <div className="space-y-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="card-boutique p-4 animate-pulse h-20" />
+                ))}
+              </div>
+            ) : historial.length === 0 ? (
+              <div className="flex flex-col items-center py-16 text-center">
+                <History size={32} className="text-blush-dark mb-3" />
+                <p className="text-sm text-boutique-gray-mid">Sin cierres de caja registrados todavía.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {historial.map((h) => {
+                  const abierta = isValid(new Date(h.abiertaEn)) ? format(new Date(h.abiertaEn), "dd/MM/yyyy HH:mm", { locale: es }) : '—';
+                  const cerrada = h.cerradaEn && isValid(new Date(h.cerradaEn)) ? format(new Date(h.cerradaEn), "dd/MM/yyyy HH:mm", { locale: es }) : '—';
+                  const totalVentas = (h.totalEfectivo ?? 0) + (h.totalTarjeta ?? 0) + (h.totalTransferencia ?? 0);
+                  const abierto = expandidoH === h.id;
+                  return (
+                    <div key={h.id} className="card-boutique overflow-hidden">
+                      <button
+                        onClick={() => setExpandidoH(abierto ? null : h.id)}
+                        className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-boutique-white transition-colors"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <Calendar size={15} className="text-gold flex-shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-boutique-dark">{h.cajero.nombre}</p>
+                            <p className="text-xs text-boutique-gray-mid">{abierta} → {cerrada}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4 flex-shrink-0">
+                          <div className="text-right">
+                            <p className="font-mono font-bold text-sm text-gold">{formatPrecio(totalVentas)}</p>
+                            <p className="text-xs text-boutique-gray-mid">{h._count.ventas} venta{h._count.ventas !== 1 ? 's' : ''}</p>
+                          </div>
+                          <ChevronDown size={14} className={`text-boutique-gray-mid transition-transform ${abierto ? 'rotate-180' : ''}`} />
+                        </div>
+                      </button>
+                      {abierto && (
+                        <div className="border-t border-blush px-4 py-3 bg-boutique-white grid sm:grid-cols-3 gap-3 text-xs">
+                          {[
+                            { label: 'Fondo inicial', value: formatPrecio(h.fondoInicial) },
+                            { label: 'Efectivo (neto)', value: formatPrecio(h.totalEfectivo ?? 0) },
+                            { label: 'Tarjeta', value: formatPrecio(h.totalTarjeta ?? 0) },
+                            { label: 'Transf. validadas', value: formatPrecio(h.totalTransferencia ?? 0) },
+                            { label: 'Total facturado', value: formatPrecio(totalVentas) },
+                            ...(h.efectivoFisico != null ? [{ label: 'Efectivo físico contado', value: formatPrecio(h.efectivoFisico) }] : []),
+                            ...(h.diferencia != null ? [{ label: h.diferencia >= 0 ? 'Sobrante' : 'Faltante', value: `${h.diferencia >= 0 ? '+' : ''}${formatPrecio(Math.abs(h.diferencia))}` }] : []),
+                          ].map((k) => (
+                            <div key={k.label} className="flex flex-col gap-0.5">
+                              <span className="text-boutique-gray-mid">{k.label}</span>
+                              <span className="font-mono font-bold text-boutique-dark">{k.value}</span>
+                            </div>
+                          ))}
+                          {h.notas && (
+                            <div className="sm:col-span-3 text-boutique-gray-dark italic">
+                              Notas: {h.notas}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {historialMeta && historialMeta.totalPaginas > 1 && (
+              <div className="flex items-center justify-between pt-2">
+                <p className="text-xs text-boutique-gray-mid">{historialMeta.total} cierres</p>
+                <div className="flex gap-1">
+                  <button disabled={historialPag === 1 || cargandoHistorial} onClick={() => cargarHistorial(historialPag - 1)} className="px-3 py-1.5 rounded-lg border border-blush text-xs disabled:opacity-40 hover:bg-blush-light">Anterior</button>
+                  <button disabled={historialPag === historialMeta.totalPaginas || cargandoHistorial} onClick={() => cargarHistorial(historialPag + 1)} className="px-3 py-1.5 rounded-lg border border-blush text-xs disabled:opacity-40 hover:bg-blush-light">Siguiente</button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : cargando ? (
           <div className="space-y-4 animate-pulse motion-reduce:animate-none motion-reduce:opacity-50">
             <div className="card-boutique p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -217,7 +362,7 @@ export default function CajaPage() {
               {procesando ? <span role="status" aria-label="Procesando" className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin motion-reduce:animate-none" /> : <Unlock size={16} aria-hidden="true" />}
               Abrir caja
             </button>
-            {!cajero && <p className="text-xs text-boutique-danger">Ve al POS y selecciona tu nombre primero.</p>}
+            {!cajero && <p className="text-xs text-boutique-danger">Inicia sesión para abrir la caja.</p>}
           </div>
         ) : (
           /* ── CAJA ABIERTA ── */
@@ -340,7 +485,18 @@ export default function CajaPage() {
               )}
             </div>
 
-            {/* Cierre de caja */}
+            {/* Aviso si la caja activa es de otro usuario y el actual es cajero */}
+            {cajero && cajero.rol === 'CAJERO' && caja.cajeroId !== cajero.id && (
+              <div className="card-boutique p-4 flex items-center gap-3 bg-boutique-warning/10 border border-boutique-warning">
+                <AlertTriangle size={18} className="text-boutique-warning flex-shrink-0" />
+                <p className="text-sm text-boutique-dark">
+                  Esta caja fue abierta por <strong>{caja.cajero.nombre}</strong>. Solo puedes ver el resumen; no puedes cerrarla.
+                </p>
+              </div>
+            )}
+
+            {/* Cierre de caja — solo si la caja es propia o el usuario es admin/supervisor */}
+            {(!cajero || cajero.rol !== 'CAJERO' || caja.cajeroId === cajero.id) && (
             <div className="card-boutique p-5 space-y-4">
               <h2 className="font-playfair text-lg font-semibold text-boutique-dark flex items-center gap-2">
                 <Lock size={18} className="text-gold" aria-hidden="true" /> Cerrar caja
@@ -393,6 +549,7 @@ export default function CajaPage() {
                 Cerrar caja del turno
               </button>
             </div>
+            )}
           </div>
         )}
       </div>

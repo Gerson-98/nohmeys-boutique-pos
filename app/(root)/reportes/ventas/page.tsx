@@ -3,7 +3,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { format, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { RefreshCw, Receipt, Filter, ChevronLeft, ChevronRight, Download, Ban, AlertTriangle } from 'lucide-react';
+import { RefreshCw, Receipt, Filter, ChevronLeft, ChevronRight, Download, Ban, AlertTriangle, Printer, Search } from 'lucide-react';
+import { ReceiptModal, type VentaDetalle } from '@/app/(root)/pos/components/ReceiptModal';
 import { toast } from 'react-toastify';
 import { formatPrecio } from '@/lib/boutique';
 import { useShopConfig } from '@/lib/useShopConfig';
@@ -85,7 +86,10 @@ export default function VentasReportePage() {
   const [desde, setDesde] = useState(hoy);
   const [hasta, setHasta] = useState(hoy);
   const [metodo, setMetodo] = useState('');
+  const [q, setQ] = useState('');
   const [pagina, setPagina] = useState(1);
+  const [ventaImprimiendo, setVentaImprimiendo] = useState<VentaDetalle | null>(null);
+  const [cargandoRecibo, setCargandoRecibo] = useState<string | null>(null);
 
   const [ventas, setVentas] = useState<Venta[]>([]);
   const [resumen, setResumen] = useState<Resumen | null>(null);
@@ -98,6 +102,20 @@ export default function VentasReportePage() {
 
   const abortRef = useRef<AbortController | null>(null);
   const rangoInvalido = desde > hasta;
+
+  async function abrirRecibo(ventaId: string) {
+    setCargandoRecibo(ventaId);
+    try {
+      const res = await fetch(`/api/ventas/${ventaId}`);
+      const d = await res.json();
+      if (res.ok) setVentaImprimiendo(d.data as VentaDetalle);
+      else toast.error(d.error || 'No se pudo cargar el comprobante');
+    } catch {
+      toast.error('Error de conexión al cargar el comprobante');
+    } finally {
+      setCargandoRecibo(null);
+    }
+  }
 
   const cargar = useCallback(async (pag = pagina) => {
     abortRef.current?.abort();
@@ -113,6 +131,7 @@ export default function VentasReportePage() {
         limite: '20',
       });
       if (metodo) p.set('metodo', metodo);
+      if (q.trim()) p.set('q', q.trim());
       const res = await fetch(`/api/reportes/ventas?${p}`, { signal: controller.signal });
       const d = await res.json();
       if (!res.ok) {
@@ -130,7 +149,14 @@ export default function VentasReportePage() {
     } finally {
       if (abortRef.current === controller) setCargando(false);
     }
-  }, [desde, hasta, metodo, pagina, router]);
+  }, [desde, hasta, metodo, q, pagina, router]);
+
+  const qDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function handleQ(value: string) {
+    setQ(value);
+    if (qDebounceRef.current) clearTimeout(qDebounceRef.current);
+    qDebounceRef.current = setTimeout(() => { setPagina(1); cargar(1); }, 350);
+  }
 
   useEffect(() => {
     setPagina(1);
@@ -145,6 +171,8 @@ export default function VentasReportePage() {
     }
     cargar(1);
   }, [desde, hasta, metodo]);
+
+  useEffect(() => () => { if (qDebounceRef.current) clearTimeout(qDebounceRef.current); }, []);
 
   function irAAnular(venta: Venta) {
     router.push(`/reportes/devoluciones?anular=${encodeURIComponent(venta.numeroTicket)}`);
@@ -264,6 +292,19 @@ export default function VentasReportePage() {
         <div className="flex items-center gap-1 text-boutique-gray-mid self-center">
           <Filter size={14} />
           <span className="text-xs font-medium">Filtros</span>
+        </div>
+        <div className="flex-1 min-w-[180px]">
+          <label className="block text-xs font-medium text-boutique-gray-mid mb-0.5">Buscar cliente o ticket</label>
+          <div className="relative">
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-boutique-gray-mid pointer-events-none" />
+            <input
+              type="text"
+              value={q}
+              onChange={(e) => handleQ(e.target.value)}
+              placeholder="Nombre de cliente o N° ticket…"
+              className="w-full input-boutique text-sm pl-8"
+            />
+          </div>
         </div>
         <div>
           <label htmlFor="ventas-desde" className="block text-xs font-medium text-boutique-gray-mid mb-0.5">Desde</label>
@@ -434,9 +475,20 @@ export default function VentasReportePage() {
                       </div>
                     )}
 
-                    {/* Anular venta */}
-                    {v.estado !== 'ANULADA' && (
-                      <div className="pt-2 border-t border-blush">
+                    {/* Acciones */}
+                    <div className="pt-2 border-t border-blush flex items-center gap-4">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); abrirRecibo(v.id); }}
+                        disabled={cargandoRecibo === v.id}
+                        className="flex items-center gap-1.5 text-xs font-medium text-boutique-gray-dark hover:text-gold transition-colors disabled:opacity-60"
+                      >
+                        {cargandoRecibo === v.id
+                          ? <span className="w-3 h-3 border border-gold border-t-transparent rounded-full animate-spin" />
+                          : <Printer size={13} />
+                        }
+                        Reimprimir comprobante
+                      </button>
+                      {v.estado !== 'ANULADA' && (
                         <button
                           onClick={(e) => { e.stopPropagation(); setVentaAnular(v); }}
                           className="flex items-center gap-1.5 text-xs font-medium text-boutique-danger hover:underline"
@@ -444,8 +496,8 @@ export default function VentasReportePage() {
                           <Ban size={13} />
                           Anular venta
                         </button>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -497,6 +549,13 @@ export default function VentasReportePage() {
           </div>
         </div>
       )}
+
+      {/* Modal reimprimir comprobante */}
+      <ReceiptModal
+        venta={ventaImprimiendo}
+        onNuevaVenta={() => setVentaImprimiendo(null)}
+        modoReimpresion
+      />
 
       {/* Confirmación de anulación */}
       <AlertDialog open={!!ventaAnular} onOpenChange={(open) => !open && setVentaAnular(null)}>

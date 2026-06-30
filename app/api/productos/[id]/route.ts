@@ -108,6 +108,11 @@ export async function PUT(
             v.precioVenta != null && v.precioVenta !== '' ? parseFloat(v.precioVenta) : null;
 
           if (v.id) {
+            const varianteActual = await tx.variante.findUnique({
+              where: { id: v.id },
+              select: { stockActual: true },
+            });
+            const nuevoStock = parseInt(v.stockActual) ?? varianteActual?.stockActual ?? 0;
             await tx.variante.update({
               where: { id: v.id },
               data: {
@@ -116,9 +121,23 @@ export async function PUT(
                 color: v.color || null,
                 colorHex: v.colorHex || null,
                 precioVenta: precioVarianteVal,
+                stockActual: nuevoStock,
                 stockMinimo: parseInt(v.stockMinimo) || 2,
               },
             });
+            if (varianteActual && nuevoStock !== varianteActual.stockActual) {
+              const diff = nuevoStock - varianteActual.stockActual;
+              await tx.movimientoInventario.create({
+                data: {
+                  varianteId: v.id,
+                  tipo: diff > 0 ? 'AJUSTE_ENTRADA' : 'AJUSTE_SALIDA',
+                  cantidad: Math.abs(diff),
+                  stockAnterior: varianteActual.stockActual,
+                  stockNuevo: nuevoStock,
+                  motivo: 'Ajuste desde edición de producto',
+                },
+              });
+            }
           } else {
             const nueva = await tx.variante.create({
               data: {

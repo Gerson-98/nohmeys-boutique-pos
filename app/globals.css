@@ -24,30 +24,32 @@
   --boutique-shadow:       0 2px 8px rgba(242, 196, 206, 0.3);
 }
 
-/* Botones boutique */
-.btn-boutique-primary {
-  @apply bg-gold text-white font-medium px-4 py-2 rounded-xl min-h-[44px]
-         hover:bg-[#b8963e] transition-colors duration-200;
-}
-.btn-boutique-secondary {
-  @apply bg-white border border-gold text-gold-dark font-medium px-4 py-2 rounded-xl min-h-[44px]
-         hover:bg-blush-light hover:text-boutique-dark transition-colors duration-200;
-}
-.btn-boutique-danger {
-  @apply bg-boutique-danger text-white font-medium px-4 py-2 rounded-xl min-h-[44px]
-         hover:bg-[#d65f5f] transition-colors duration-200;
-}
+@layer components {
+  /* Botones boutique */
+  .btn-boutique-primary {
+    @apply bg-gold text-white font-medium px-4 py-2 rounded-xl min-h-[44px]
+           hover:bg-[#b8963e] transition-colors duration-200;
+  }
+  .btn-boutique-secondary {
+    @apply bg-white border border-gold text-gold-dark font-medium px-4 py-2 rounded-xl min-h-[44px]
+           hover:bg-blush-light hover:text-boutique-dark transition-colors duration-200;
+  }
+  .btn-boutique-danger {
+    @apply bg-boutique-danger text-white font-medium px-4 py-2 rounded-xl min-h-[44px]
+           hover:bg-[#d65f5f] transition-colors duration-200;
+  }
 
-/* Cards boutique */
-.card-boutique {
-  @apply bg-boutique-white border border-blush rounded-xl;
-  box-shadow: var(--boutique-shadow);
-}
+  /* Cards boutique */
+  .card-boutique {
+    @apply bg-boutique-white border border-blush rounded-xl;
+    box-shadow: var(--boutique-shadow);
+  }
 
-/* Input boutique */
-.input-boutique {
-  @apply border border-gold-light rounded-xl px-3 py-2 text-sm focus:outline-none
-         focus:border-gold focus:ring-2 focus:ring-gold transition-all;
+  /* Input boutique — px-3 queda aquí; pl-* externo puede sobreescribir correctamente */
+  .input-boutique {
+    @apply border border-gold-light rounded-xl px-3 py-2 text-sm focus:outline-none
+           focus:border-gold focus:ring-2 focus:ring-gold transition-all;
+  }
 }
 
 @layer base {

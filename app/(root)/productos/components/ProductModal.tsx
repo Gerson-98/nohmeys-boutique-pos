@@ -68,7 +68,7 @@ export function ProductModal({ open, onClose, onSuccess, productoId }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-2xl w-full max-h-[92vh] flex flex-col p-0 gap-0 rounded-2xl border border-blush bg-white overflow-hidden">
+      <DialogContent className="max-w-3xl w-full max-h-[92vh] flex flex-col p-0 gap-0 rounded-2xl border border-blush bg-white overflow-hidden">
         {/* Header fijo */}
         <DialogHeader className="px-6 py-4 border-b border-blush bg-boutique-white flex-shrink-0">
           <DialogTitle className="font-playfair text-xl font-bold text-boutique-dark">

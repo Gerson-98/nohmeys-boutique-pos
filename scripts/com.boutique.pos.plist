@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Plantilla de servicio de auto-inicio (launchd) para macOS.
+  Reemplaza /RUTA/A/Point-of-sales-Nextjs por la ruta real del proyecto en la Mac
+  antes de copiarlo a ~/Library/LaunchAgents/com.boutique.pos.plist
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.boutique.pos</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/RUTA/A/Point-of-sales-Nextjs/scripts/mac-start.sh</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/boutique-pos.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/boutique-pos-error.log</string>
+</dict>
+</plist>

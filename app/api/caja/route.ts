@@ -2,11 +2,36 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
 
-// GET: obtener caja abierta actual (si existe).
+// GET: obtener caja abierta actual O historial de cierres pasados.
+// ?historial=true  → devuelve lista paginada de cajas CERRADAS
 // El rol CAJERO solo puede ver la caja abierta si él mismo la abrió (no ve turnos abiertos por otros cajeros).
 export async function GET(req: NextRequest) {
   try {
     const session = await getSessionFromRequest(req);
+    const { searchParams } = new URL(req.url);
+
+    // ── Historial de cajas cerradas ─────────────────────────
+    if (searchParams.get('historial') === 'true') {
+      const pagina = parseInt(searchParams.get('pagina') || '1');
+      const limite = 10;
+      const [cajas, total] = await Promise.all([
+        db.cierreCaja.findMany({
+          where: { estado: 'CERRADA' },
+          orderBy: { cerradaEn: 'desc' },
+          skip: (pagina - 1) * limite,
+          take: limite,
+          include: {
+            cajero: { select: { nombre: true } },
+            _count: { select: { ventas: true } },
+          },
+        }),
+        db.cierreCaja.count({ where: { estado: 'CERRADA' } }),
+      ]);
+      return NextResponse.json({
+        data: cajas,
+        meta: { total, pagina, limite, totalPaginas: Math.ceil(total / limite) },
+      });
+    }
 
     const cajaAbierta = await db.cierreCaja.findFirst({
       where: { estado: 'ABIERTA' },

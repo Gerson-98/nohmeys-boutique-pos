@@ -34,6 +34,7 @@ export default function POSPage() {
   // Modales
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [ventaCompleta, setVentaCompleta] = useState<VentaDetalle | null>(null);
+  const [catalogoReloadKey, setCatalogoReloadKey] = useState(0);
 
   // Mobile tab
   const [tabActivo, setTabActivo] = useState<'catalogo' | 'carrito'>('catalogo');
@@ -42,14 +43,32 @@ export default function POSPage() {
   const [confirmarVaciar, setConfirmarVaciar] = useState(false);
   const vaciarTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Cargar sesión desde localStorage
+  // Cargar cajero desde la sesión HTTP (login) — siempre tiene prioridad sobre localStorage
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(SESSION_KEY);
-      if (stored) setCajero(JSON.parse(stored));
-    } catch {
-      // sesión inválida, mostrar selector
-    }
+    fetch('/api/auth/me')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.user) {
+          const c: CajeroPOS = { id: d.user.userId, nombre: d.user.nombre, rol: d.user.rol };
+          setCajero(c);
+          localStorage.setItem(SESSION_KEY, JSON.stringify(c));
+        } else {
+          // Sin sesión HTTP: intentar leer localStorage como fallback (modo tablet compartida)
+          try {
+            const stored = localStorage.getItem(SESSION_KEY);
+            if (stored) setCajero(JSON.parse(stored));
+          } catch {
+            // sesión inválida, mostrar selector
+          }
+        }
+      })
+      .catch(() => {
+        // Sin red: usar localStorage
+        try {
+          const stored = localStorage.getItem(SESSION_KEY);
+          if (stored) setCajero(JSON.parse(stored));
+        } catch { /* sesión inválida */ }
+      });
   }, []);
 
   function seleccionarCajero(c: CajeroPOS) {
@@ -230,6 +249,7 @@ export default function POSPage() {
       setPaymentOpen(false);
       setVentaCompleta(data.data as VentaDetalle);
       limpiarCarrito();
+      setCatalogoReloadKey((k) => k + 1);
     } catch (err: unknown) {
       if (!avisoMostrado) {
         toast.error('No pudimos conectar con el servidor. Revisa tu conexión e intenta de nuevo.');
@@ -410,7 +430,7 @@ export default function POSPage() {
               tabActivo === 'carrito' ? 'hidden md:flex md:flex-col' : 'flex flex-col'
             }`}
           >
-            <ProductSearch onAgregarProducto={handleProductoClick} />
+            <ProductSearch onAgregarProducto={handleProductoClick} reloadKey={catalogoReloadKey} />
           </div>
 
           {/* Panel carrito */}
