@@ -1,5 +1,5 @@
 'use client';
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { useReactToPrint } from 'react-to-print';
 import { Printer, CheckCircle, ShoppingBag, Download } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
@@ -194,11 +194,58 @@ Ticket.displayName = 'Ticket';
 export function ReceiptModal({ venta, onNuevaVenta, modoReimpresion = false }: Props) {
   const config = useShopConfig();
   const ticketRef = useRef<HTMLDivElement>(null);
+  const [printingThermal, setPrintingThermal] = useState(false);
+  const [thermalError, setThermalError] = useState<string | null>(null);
 
   const handlePrint = useReactToPrint({
     content: () => ticketRef.current,
     documentTitle: `Ticket-${venta?.numeroTicket ?? ''}`,
   });
+
+  async function handlePrintThermal() {
+    if (!venta) return;
+    setPrintingThermal(true);
+    setThermalError(null);
+    try {
+      const fecha = new Date(venta.createdAt).toLocaleDateString('es-GT', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      });
+      const body = {
+        nombreComercial: config?.nombreComercial ?? "Nohemy's Boutique",
+        direccion: config?.direccion,
+        nit: config?.nit,
+        fecha,
+        numeroTicket: venta.numeroTicket,
+        cajero: venta.cajero.nombre,
+        cliente: venta.cliente?.nombre,
+        items: venta.detalles.map((d) => ({
+          nombre: d.variante.producto.nombre,
+          variante: [d.variante.talla, d.variante.color].filter(Boolean).join(' / ') || undefined,
+          cantidad: d.cantidad,
+          subtotal: d.subtotal,
+          descuento: d.descuento,
+        })),
+        descuento: venta.descuentoGlobal,
+        impuesto: venta.impuesto,
+        total: venta.total,
+        cambio: venta.cambio,
+        pagos: venta.pagos.map((p) => ({
+          metodo: METODO_LABEL[p.metodo] ?? p.metodo,
+          monto: p.monto,
+          referencia: p.referencia ?? p.transferencia?.referencia ?? undefined,
+        })),
+        politicaCambios: config?.politicaCambios,
+      };
+      const res = await fetch('/api/print', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const json = await res.json();
+      if (!json.ok) setThermalError(json.error ?? 'Error al imprimir');
+    } catch (e: unknown) {
+      setThermalError(e instanceof Error ? e.message : 'Error de conexión');
+    } finally {
+      setPrintingThermal(false);
+    }
+  }
 
   function handleDescargarPDF() {
     if (!venta || !ticketRef.current) return;
@@ -262,13 +309,24 @@ export function ReceiptModal({ venta, onNuevaVenta, modoReimpresion = false }: P
 
         {/* Botones */}
         <div className="p-4 border-t border-blush space-y-2">
+          {thermalError && (
+            <p className="text-xs text-red-500 text-center px-2">{thermalError}</p>
+          )}
+          <button
+            onClick={handlePrintThermal}
+            disabled={printingThermal}
+            className="w-full btn-boutique-primary flex items-center justify-center gap-2 py-2.5 text-sm disabled:opacity-60"
+          >
+            <Printer size={15} />
+            {printingThermal ? 'Imprimiendo...' : 'Imprimir Ticket'}
+          </button>
           <div className="flex gap-2">
             <button
               onClick={handlePrint}
               className="flex-1 btn-boutique-secondary flex items-center justify-center gap-2 py-2.5 text-sm"
             >
               <Printer size={15} />
-              Imprimir
+              Imprimir (PDF)
             </button>
             <button
               onClick={handleDescargarPDF}

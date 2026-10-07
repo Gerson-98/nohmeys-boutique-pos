@@ -2,6 +2,8 @@
 # Arranca la app de Nohemy's Boutique en la Mac y abre el navegador.
 # Se ejecuta automáticamente al encender la Mac (ver launchd) o manualmente con: ./scripts/mac-start.sh
 
+export PATH="/opt/homebrew/bin:/opt/homebrew/opt/node@20/bin:/opt/homebrew/opt/postgresql@16/bin:/usr/local/bin:/usr/bin:/bin"
+
 set -e
 cd "$(dirname "$0")/.."
 

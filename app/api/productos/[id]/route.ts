@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
@@ -81,10 +82,11 @@ export async function PUT(
         );
       }
 
-      // Validar precio de venta de variante si viene definido
+      // Validar precio de venta de variante si viene definido (0 = usar precio global)
       for (const v of variantes) {
-        if (v.precioVenta != null && v.precioVenta !== '' && parseFloat(v.precioVenta) <= 0) {
-          return NextResponse.json({ error: 'El precio de venta de la variante debe ser mayor a 0' }, { status: 400 });
+        const pv = v.precioVenta != null && v.precioVenta !== '' ? parseFloat(v.precioVenta) : null;
+        if (pv != null && pv < 0) {
+          return NextResponse.json({ error: 'El precio de venta de la variante no puede ser negativo' }, { status: 400 });
         }
       }
     }
@@ -104,8 +106,8 @@ export async function PUT(
 
       if (variantes && Array.isArray(variantes)) {
         for (const v of variantes) {
-          const precioVarianteVal =
-            v.precioVenta != null && v.precioVenta !== '' ? parseFloat(v.precioVenta) : null;
+          const _pv = v.precioVenta != null && v.precioVenta !== '' ? parseFloat(v.precioVenta) : null;
+          const precioVarianteVal = _pv != null && _pv > 0 ? _pv : null;
 
           if (v.id) {
             const varianteActual = await tx.variante.findUnique({

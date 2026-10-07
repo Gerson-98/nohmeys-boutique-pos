@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 // Devuelve usuarios activos para el selector de sesión del POS.
 // Si no existen, crea un usuario admin por defecto.
 export async function GET() {

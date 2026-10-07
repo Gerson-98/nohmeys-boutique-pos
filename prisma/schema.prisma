@@ -151,7 +151,9 @@ model User {
   updatedAt    DateTime   @updatedAt
 
   ventas                  Venta[]
-  cierresCaja             CierreCaja[]
+  cierresCaja             CierreCaja[]      @relation("CajasAbiertas")
+  cajasCerradas           CierreCaja[]      @relation("CajasCerradas")
+  gastosCajaRegistrados   GastoCaja[]       @relation("GastosCajaRegistrados")
   ajustesStock            AjusteInventario[]
   auditLogs               AuditLog[]
   transferenciasValidadas Transferencia[]
@@ -173,6 +175,7 @@ model Producto {
   id          String     @id @default(cuid())
   nombre      String
   descripcion String?
+  marca       String?
   imagenUrl   String?
   categoriaId String
   categoria   Categoria  @relation(fields: [categoriaId], references: [id])
@@ -186,17 +189,18 @@ model Producto {
 }
 
 model Variante {
-  id           String    @id @default(cuid())
-  sku          String    @unique
-  productoId   String
-  producto     Producto  @relation(fields: [productoId], references: [id])
-  talla        String?
-  color        String?
-  colorHex     String?
-  precioVenta  Float?
-  stockActual  Int       @default(0)
-  stockMinimo  Int       @default(2)
-  isActive     Boolean   @default(true)
+  id              String    @id @default(cuid())
+  sku             String    @unique
+  codigoBarras    String?   @unique
+  productoId      String
+  producto        Producto  @relation(fields: [productoId], references: [id])
+  talla           String?
+  color           String?
+  colorHex        String?
+  precioVenta     Float?
+  stockActual     Int       @default(0)
+  stockMinimo     Int       @default(2)
+  isActive        Boolean   @default(true)
 
   detallesVenta DetalleVenta[]
   movimientos   MovimientoInventario[]
@@ -312,7 +316,9 @@ model Transferencia {
 model CierreCaja {
   id                 String     @id @default(cuid())
   cajeroId           String
-  cajero             User       @relation(fields: [cajeroId], references: [id])
+  cajero             User       @relation("CajasAbiertas", fields: [cajeroId], references: [id])
+  cerradoPorId       String?
+  cerradoPor         User?      @relation("CajasCerradas", fields: [cerradoPorId], references: [id])
   estado             EstadoCaja @default(ABIERTA)
   fondoInicial       Float
   totalEfectivo      Float?
@@ -326,6 +332,19 @@ model CierreCaja {
 
   ventas       Venta[]
   devoluciones Devolucion[]
+  gastos       GastoCaja[]
+}
+
+model GastoCaja {
+  id           String     @id @default(cuid())
+  cierreCajaId String
+  cierreCaja   CierreCaja @relation(fields: [cierreCajaId], references: [id])
+  concepto     String
+  tipo         String     // EGRESO | INGRESO
+  monto        Float
+  registradoPorId String?
+  registradoPor   User?   @relation("GastosCajaRegistrados", fields: [registradoPorId], references: [id])
+  createdAt    DateTime   @default(now())
 }
 
 // ============================================================

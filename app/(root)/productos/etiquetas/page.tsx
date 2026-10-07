@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 interface Variante {
   id: string;
   sku: string;
+  codigoBarras: string | null;
   talla: string | null;
   color: string | null;
   precioVenta: number | null;
@@ -18,6 +19,7 @@ interface Variante {
 interface Producto {
   id: string;
   nombre: string;
+  marca: string | null;
   precioVenta: number;
   imagenUrl: string | null;
   variantes: Variante[];
@@ -25,23 +27,21 @@ interface Producto {
 
 interface EtiquetaItem {
   productoNombre: string;
+  marca: string | null;
   precioVenta: number;
   sku: string;
+  codigoBarras: string | null;
   talla: string | null;
   color: string | null;
   cantidad: number;
 }
 
-// Impresora térmica MUNBYN RealWriter 941: rollo continuo, ancho de etiqueta 40–104mm.
-// Una etiqueta por "página" de 50×30mm (tamaño estándar para tags de precio/barcode).
+// Aiyin E40 — etiqueta 50mm × 25mm (landscape)
 const LABEL_W_MM = 50;
-const LABEL_H_MM = 30;
+const LABEL_H_MM = 25;
+const LABEL_W_IN = 1.969;
+const LABEL_H_IN = 0.984;
 
-function escapeHtml(texto: string): string {
-  const div = document.createElement('div');
-  div.textContent = texto;
-  return div.innerHTML;
-}
 
 async function generarBarcodeDataUrl(sku: string): Promise<string> {
   try {
@@ -52,6 +52,25 @@ async function generarBarcodeDataUrl(sku: string): Promise<string> {
   } catch {
     return '';
   }
+}
+
+// Rota una imagen 90° en sentido horario (CW) — el driver del Aiyin E40 rota 90° CCW,
+// así que pre-rotamos el barcode CW para que el resultado final sea correcto.
+async function rotarImagen90CW(dataUrl: string): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new window.Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = img.height;
+      c.height = img.width;
+      const ctx = c.getContext('2d')!;
+      ctx.translate(img.height, 0);
+      ctx.rotate(Math.PI / 2);
+      ctx.drawImage(img, 0, 0);
+      resolve(c.toDataURL('image/png'));
+    };
+    img.src = dataUrl;
+  });
 }
 
 export default function EtiquetasPage() {
@@ -100,7 +119,16 @@ export default function EtiquetasPage() {
     setEtiquetas((prev) => {
       const existe = prev.find((e) => e.sku === variante.sku);
       if (existe) return prev.map((e) => e.sku === variante.sku ? { ...e, cantidad: e.cantidad + 1 } : e);
-      return [...prev, { productoNombre: prod.nombre, precioVenta: variante.precioVenta ?? prod.precioVenta, sku: variante.sku, talla: variante.talla, color: variante.color, cantidad: 1 }];
+      return [...prev, {
+        productoNombre: prod.nombre,
+        marca: prod.marca ?? null,
+        precioVenta: variante.precioVenta ?? prod.precioVenta,
+        sku: variante.sku,
+        codigoBarras: variante.codigoBarras ?? null,
+        talla: variante.talla,
+        color: variante.color,
+        cantidad: 1,
+      }];
     });
   }
 
@@ -144,62 +172,112 @@ export default function EtiquetasPage() {
     const expandidas = expandirEtiquetas();
     setGenerando(true);
     try {
-      const barcodes = new Map<string, string>();
-      for (const e of etiquetas) barcodes.set(e.sku, await generarBarcodeDataUrl(e.sku));
+      // Imprimimos como PNG para evitar que el driver rote el contenido.
+      // 8 px/mm ≈ 203 DPI (resolución estándar de impresoras térmicas)
+      const S = 8;
+      const CW = LABEL_W_MM * S; // 400px = 50mm
+      const CH = LABEL_H_MM * S; // 200px = 25mm
 
-      const ventana = window.open('', '_blank', 'width=900,height=700');
-      if (!ventana) {
-        toast.error('El navegador bloqueó la ventana de impresión. Habilita las ventanas emergentes.');
-        return;
+      const barcodes = new Map<string, string>();
+      for (const e of etiquetas) {
+        const val = e.codigoBarras || e.sku;
+        barcodes.set(e.sku, await generarBarcodeDataUrl(val));
       }
 
-      const contenidoEtiquetas = expandidas.map((e) => `
-        <div class="etiqueta">
-          <p class="nombre">${escapeHtml(e.productoNombre)}</p>
-          <p class="variante">${escapeHtml([e.talla, e.color].filter(Boolean).join(' / ') || '—')}</p>
-          ${barcodes.get(e.sku) ? `<img class="barcode" src="${barcodes.get(e.sku)}" alt="${escapeHtml(e.sku)}" />` : ''}
-          <p class="sku">${escapeHtml(e.sku)}</p>
-          <p class="precio">${formatPrecio(e.precioVenta)}</p>
-        </div>`).join('');
+      // Generamos todos los canvas primero y los enviamos en UN solo llamado
+      const images: string[] = [];
 
-      ventana.document.write(`<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Etiquetas — Nohemy's Boutique</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Courier New', monospace; background: white; }
-    @page { size: ${LABEL_W_MM}mm ${LABEL_H_MM}mm; margin: 0; }
-    .etiqueta {
-      width: ${LABEL_W_MM}mm;
-      height: ${LABEL_H_MM}mm;
-      padding: 1.5mm 2mm;
-      text-align: center;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-      gap: 0;
-      page-break-after: always;
-      break-after: page;
-      page-break-inside: avoid;
-    }
-    .etiqueta:last-child { page-break-after: auto; break-after: auto; }
-    .nombre   { font-size: 7pt; font-weight: bold; line-height: 1.1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 0.5mm; }
-    .variante { font-size: 6pt; color: #555; line-height: 1.1; margin-bottom: 0.5mm; }
-    .barcode  { display: block; max-width: 92%; max-height: 10mm; width: auto; height: auto; object-fit: contain; margin: 0.5mm auto; }
-    .sku      { font-size: 5.5pt; color: #666; letter-spacing: 0.3px; margin-bottom: 0.5mm; }
-    .precio   { font-size: 9pt; font-weight: bold; line-height: 1; }
-  </style>
-</head>
-<body>
-  ${contenidoEtiquetas}
-  <script>window.addEventListener('load', function() { setTimeout(function() { window.print(); }, 400); });<\/script>
-</body>
-</html>`);
-      ventana.document.close();
+      for (const e of expandidas) {
+        const canvas = document.createElement('canvas');
+        canvas.width  = CW;
+        canvas.height = CH;
+        const ctx = canvas.getContext('2d')!;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, CW, CH);
+        ctx.fillStyle = '#000000';
+        ctx.textBaseline = 'middle';
+
+        const varLabel = [e.talla, e.color].filter(Boolean).join(' / ');
+
+        // --- Precio: lo medimos primero para calcular el espacio disponible para el nombre ---
+        const pxPre = Math.round(9 * 0.353 * S);
+        ctx.font = `bold ${pxPre}px Helvetica,Arial,sans-serif`;
+        const precioStr = formatPrecio(e.precioVenta);
+        const precioW = ctx.measureText(precioStr).width;
+        // El nombre puede ocupar desde x=2mm hasta donde empieza el precio (con 2mm de separación)
+        const maxNombreW = CW - precioW - 4 * S; // 4mm = margen izq 2mm + separación 2mm
+
+        // Nombre: reducimos el font hasta que quepa en el espacio disponible
+        let ptNom = 7;
+        let pxNom = Math.round(ptNom * 0.353 * S);
+        ctx.font = `bold ${pxNom}px Helvetica,Arial,sans-serif`;
+        let nombreStr = e.productoNombre;
+        while (ctx.measureText(nombreStr).width > maxNombreW && ptNom > 4.5) {
+          ptNom -= 0.5;
+          pxNom = Math.round(ptNom * 0.353 * S);
+          ctx.font = `bold ${pxNom}px Helvetica,Arial,sans-serif`;
+        }
+        // Si aún no cabe con el font mínimo, truncamos con ellipsis
+        if (ctx.measureText(nombreStr).width > maxNombreW) {
+          while (nombreStr.length > 1 && ctx.measureText(nombreStr + '…').width > maxNombreW) {
+            nombreStr = nombreStr.slice(0, -1);
+          }
+          nombreStr = nombreStr + '…';
+        }
+
+        ctx.textAlign = 'left';
+        ctx.fillText(nombreStr, 2 * S, 5 * S);
+
+        // Precio (derecha, fila 1)
+        ctx.font = `bold ${pxPre}px Helvetica,Arial,sans-serif`;
+        ctx.textAlign = 'right';
+        ctx.fillText(precioStr, (LABEL_W_MM - 2) * S, 5 * S);
+
+        // Variante (normal, izquierda, fila 2)
+        if (varLabel) {
+          const pxVar = Math.round(5.5 * 0.353 * S);
+          ctx.font = `${pxVar}px Helvetica,Arial,sans-serif`;
+          ctx.textAlign = 'left';
+          ctx.fillText(varLabel, 2 * S, 9.5 * S);
+        }
+
+        // Código de barras
+        const barcodeUrl = barcodes.get(e.sku);
+        if (barcodeUrl) {
+          await new Promise<void>((resolve) => {
+            const img = new window.Image();
+            img.onload = () => {
+              ctx.drawImage(img, 2 * S, 12 * S, (LABEL_W_MM - 4) * S, 8 * S);
+              resolve();
+            };
+            img.onerror = () => resolve();
+            img.src = barcodeUrl;
+          });
+        }
+
+        // SKU centrado debajo del barcode
+        const pxSku = Math.round(4.5 * 0.353 * S);
+        ctx.font = `${pxSku}px 'Courier New',monospace`;
+        ctx.textAlign = 'center';
+        ctx.fillText(e.codigoBarras || e.sku, CW / 2, 21.5 * S);
+
+        images.push(canvas.toDataURL('image/png').split(',')[1]);
+      }
+
+      // Un único fetch para todas las etiquetas → un único trabajo lp sin pausas
+      const res = await fetch('/api/etiquetas/imprimir', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ images }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? 'Error al enviar a la impresora');
+      }
+      toast.success(`${expandidas.length} etiqueta${expandidas.length !== 1 ? 's' : ''} enviada${expandidas.length !== 1 ? 's' : ''} a la impresora`);
+    } catch (err: any) {
+      toast.error('Error al imprimir: ' + err.message);
     } finally {
       setGenerando(false);
     }
@@ -211,39 +289,50 @@ export default function EtiquetasPage() {
     setGenerando(true);
     try {
       const { jsPDF } = await import('jspdf');
-      const doc = new jsPDF({ unit: 'mm', format: [LABEL_W_MM, LABEL_H_MM] });
+      const W = LABEL_W_MM; // 50mm ancho
+      const H = LABEL_H_MM; // 25mm alto
+      const doc = new jsPDF({ unit: 'mm', format: [W, H] });
 
       const barcodes = new Map<string, string>();
-      for (const e of etiquetas) barcodes.set(e.sku, await generarBarcodeDataUrl(e.sku));
+      for (const e of etiquetas) {
+        const val = e.codigoBarras || e.sku;
+        barcodes.set(e.sku, await generarBarcodeDataUrl(val));
+      }
 
-      // Posiciones dentro de la etiqueta de 50×30mm.
-      const BAR_H   = 7;   // altura del código de barras en mm
-      const BAR_W   = LABEL_W_MM - 8;
-      const cX        = LABEL_W_MM / 2;
-      const Y_NOMBRE   = 5;
-      const Y_VARIANTE = 9.5;
-      const Y_BAR_TOP  = 11.5;
-      const Y_SKU      = Y_BAR_TOP + BAR_H + 2;   // ~20.5
-      const Y_PRECIO   = Y_SKU + 5.5;             // ~26
+      // Layout 50mm × 25mm
+      // Fila 1: Nombre (izq) | Precio (der)
+      // Fila 2: Variante (izq)
+      // Fila 3: Barcode ancho completo
+      // Fila 4: SKU texto
+      const X_L  = 2;
+      const X_R  = W - 2;
+      const BAR_W = W - 4;
+      const BAR_H = 8;
+      const Y_NOM = 5;
+      const Y_VAR = 9.5;
+      const Y_BAR = 12;
+      const Y_SKU = Y_BAR + BAR_H + 1.2;
 
       expandidas.forEach((e, idx) => {
-        if (idx > 0) doc.addPage([LABEL_W_MM, LABEL_H_MM]);
+        if (idx > 0) doc.addPage([W, H]);
+        const nombreCorto = e.productoNombre.length > 18 ? e.productoNombre.slice(0, 16) + '…' : e.productoNombre;
 
-        doc.setFont('courier', 'bold'); doc.setFontSize(7);
-        const nombreCorto = e.productoNombre.length > 30 ? e.productoNombre.slice(0, 28) + '…' : e.productoNombre;
-        doc.text(nombreCorto, cX, Y_NOMBRE, { align: 'center' });
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(7);
+        doc.text(nombreCorto, X_L, Y_NOM);
+        doc.setFontSize(9);
+        doc.text(formatPrecio(e.precioVenta), X_R, Y_NOM, { align: 'right' });
 
-        doc.setFont('courier', 'normal'); doc.setFontSize(6);
-        doc.text([e.talla, e.color].filter(Boolean).join(' / ') || '—', cX, Y_VARIANTE, { align: 'center' });
+        const varLabel = [e.talla, e.color].filter(Boolean).join(' / ');
+        if (varLabel) {
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5);
+          doc.text(varLabel, X_L, Y_VAR);
+        }
 
         const dataUrl = barcodes.get(e.sku);
-        if (dataUrl) doc.addImage(dataUrl, 'PNG', cX - BAR_W / 2, Y_BAR_TOP, BAR_W, BAR_H);
+        if (dataUrl) doc.addImage(dataUrl, 'PNG', X_L, Y_BAR, BAR_W, BAR_H);
 
-        doc.setFontSize(5.5);
-        doc.text(e.sku, cX, Y_SKU, { align: 'center' });
-
-        doc.setFont('courier', 'bold'); doc.setFontSize(10);
-        doc.text(formatPrecio(e.precioVenta), cX, Y_PRECIO, { align: 'center' });
+        doc.setFont('courier', 'normal'); doc.setFontSize(4.5);
+        doc.text(e.codigoBarras || e.sku, W / 2, Y_SKU, { align: 'center' });
       });
 
       doc.save(`etiquetas-${new Date().toISOString().slice(0, 10)}.pdf`);
@@ -266,10 +355,10 @@ export default function EtiquetasPage() {
               Etiquetas de <span className="text-gold">códigos de barras</span>
             </h1>
             <p className="text-sm text-boutique-gray-mid mt-0.5">
-              Seleccioná los productos y cantidades. Etiquetas de {LABEL_W_MM}×{LABEL_H_MM}mm para impresora térmica (rollo continuo).
+              Seleccioná productos y cantidades. Etiqueta 1.25″ × 2.25″ (portrait) · Impresora: <span className="font-medium text-boutique-dark">Aiyin E40</span>
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={descargarPDF}
               disabled={etiquetas.length === 0 || generando}
@@ -416,7 +505,7 @@ export default function EtiquetasPage() {
                 {/* Label preview */}
                 <div className="p-4 bg-boutique-white border-b border-blush">
                   <p className="text-[10px] font-medium text-boutique-gray-mid mb-2 text-center">
-                    Vista previa · etiqueta térmica {LABEL_W_MM}×{LABEL_H_MM}mm
+                    Vista previa · Aiyin E40 · 1.25″ × 2.25″
                   </p>
                   <div className="bg-white border border-dashed border-gold rounded-xl p-3 max-w-[200px] mx-auto text-center">
                     <p className="text-[10px] font-bold text-boutique-dark truncate mb-0.5">
@@ -515,7 +604,7 @@ export default function EtiquetasPage() {
             {etiquetas.length > 0 && (
               <div className="p-4 border-t border-blush bg-boutique-white space-y-2">
                 <p className="text-[10px] text-boutique-gray-mid text-center">
-                  {totalEtiquetas} etiqueta{totalEtiquetas !== 1 ? 's' : ''} de {LABEL_W_MM}×{LABEL_H_MM}mm
+                  {totalEtiquetas} etiqueta{totalEtiquetas !== 1 ? 's' : ''} · 1.25″ × 2.25″ · Aiyin E40
                 </p>
                 <div className="flex gap-2">
                   <button

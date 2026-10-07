@@ -1,7 +1,12 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
-import { format, eachDayOfInterval, parseISO, startOfDay, endOfDay } from 'date-fns';
+import { format, eachDayOfInterval, parseISO } from 'date-fns';
+import { toZonedTime, fromZonedTime } from 'date-fns-tz';
+const TZ = 'America/Guatemala';
+function inicioDelDia(d: Date): Date { const l = toZonedTime(d, TZ); l.setHours(0,0,0,0); return fromZonedTime(l, TZ); }
+function finDelDia(d: Date): Date { const l = toZonedTime(d, TZ); l.setHours(23,59,59,999); return fromZonedTime(l, TZ); }
 
 export async function GET(req: NextRequest) {
   try {
@@ -19,8 +24,8 @@ export async function GET(req: NextRequest) {
         venta: {
           estado: 'COMPLETADA',
           createdAt: {
-            gte: startOfDay(parseISO(desde)),
-            lte: endOfDay(parseISO(hasta)),
+            gte: inicioDelDia(parseISO(desde)),
+            lte: finDelDia(parseISO(hasta)),
           },
         },
       },

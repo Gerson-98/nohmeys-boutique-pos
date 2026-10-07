@@ -30,6 +30,7 @@ export default function EditarProductoPage({ params }: Props) {
           id: p.id,
           nombre: p.nombre,
           descripcion: p.descripcion,
+          marca: p.marca ?? null,
           imagenUrl: p.imagenUrl,
           categoriaId: p.categoriaId,
           costo: p.costo,
@@ -37,6 +38,7 @@ export default function EditarProductoPage({ params }: Props) {
           variantes: p.variantes.map((v: ProductoData['variantes'][number]) => ({
             id: v.id,
             sku: v.sku,
+            codigoBarras: v.codigoBarras ?? '',
             talla: v.talla ?? '',
             color: v.color ?? '',
             colorHex: v.colorHex ?? '',

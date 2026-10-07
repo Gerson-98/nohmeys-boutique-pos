@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { CatProduct, PrismaClient } from '@prisma/client';
 import { NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';

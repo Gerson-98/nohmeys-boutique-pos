@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
@@ -161,7 +162,7 @@ export async function POST(req: NextRequest) {
             talla: v.talla || null,
             color: v.color || null,
             colorHex: v.colorHex || null,
-            precioVenta: v.precioVenta != null && v.precioVenta !== '' ? parseFloat(v.precioVenta) : null,
+            precioVenta: (() => { const p = v.precioVenta != null && v.precioVenta !== '' ? parseFloat(v.precioVenta) : null; return p != null && p > 0 ? p : null; })(),
             stockActual: parseInt(v.stockActual) || 0,
             stockMinimo: parseInt(v.stockMinimo) || 2,
           })),

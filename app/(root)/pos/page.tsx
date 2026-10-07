@@ -14,6 +14,7 @@ import { PaymentModal } from './components/PaymentModal';
 import { ReceiptModal, type VentaDetalle } from './components/ReceiptModal';
 
 import type { CartItem, CajeroPOS, ClientePOS, PagoInput, ProductoPOS, VariantePOS } from './types';
+// VariantePOS needed for handleVarianteDirecta
 
 const SESSION_KEY = 'pos_cajero';
 
@@ -29,6 +30,8 @@ export default function POSPage() {
   const [cliente, setCliente] = useState<ClientePOS | null>(null);
   const [descuentoGlobal, setDescuentoGlobal] = useState(0); // monto en Q
   const [descGlobalAjustado, setDescGlobalAjustado] = useState(false);
+  const [modoDescGlobal, setModoDescGlobal] = useState<'Q' | '%'>('Q');
+  const [pctGlobal, setPctGlobal] = useState('');
   const descGlobalTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Modales
@@ -125,6 +128,14 @@ export default function POSPage() {
     }
   }
 
+  // Usado por escáner de barras: agrega la variante exacta sin abrir modal
+  const handleVarianteDirecta = useCallback(
+    (producto: ProductoPOS, variante: VariantePOS) => {
+      agregarAlCarrito(producto, variante);
+    },
+    [agregarAlCarrito]
+  );
+
   function handleVarianteSeleccionada(variante: VariantePOS) {
     if (productoParaVariante) {
       agregarAlCarrito(productoParaVariante, variante);
@@ -161,6 +172,8 @@ export default function POSPage() {
     setItems([]);
     setCliente(null);
     setDescuentoGlobal(0);
+    setModoDescGlobal('Q');
+    setPctGlobal('');
   }
 
   // Vaciar carrito requiere confirmación: primer tap arma la confirmación
@@ -197,6 +210,20 @@ export default function POSPage() {
       descGlobalTimeoutRef.current = setTimeout(() => setDescGlobalAjustado(false), 1500);
     }
     setDescuentoGlobal(clamped);
+  }
+
+  function handlePctGlobal(raw: string) {
+    setPctGlobal(raw);
+    const pct = Math.min(100, Math.max(0, parseFloat(raw) || 0));
+    const monto = subtotalNeto * (pct / 100);
+    setDescuentoGlobal(Math.round(monto * 100) / 100);
+  }
+
+  function toggleModoDescGlobal() {
+    const nuevo = modoDescGlobal === 'Q' ? '%' : 'Q';
+    setModoDescGlobal(nuevo);
+    setPctGlobal('');
+    setDescuentoGlobal(0);
   }
 
   // ── Totales ──────────────────────────────────────────────
@@ -336,20 +363,40 @@ export default function POSPage() {
             )}
             {/* Descuento global */}
             <div className="flex items-center justify-between">
-              <span className="text-boutique-gray-dark text-xs">Desc. global (Q)</span>
+              <span className="text-boutique-gray-dark text-xs">Desc. global</span>
               <div className="flex items-center gap-1">
-                <input
-                  type="number"
-                  min={0}
-                  max={subtotalNeto}
-                  step={0.01}
-                  value={descuentoGlobal || ''}
-                  onChange={(e) => handleDescuentoGlobal(Number(e.target.value) || 0)}
-                  className={`w-16 text-center text-xs font-mono input-boutique py-0.5 px-1 transition-colors ${
-                    descGlobalAjustado ? 'border-boutique-danger' : ''
-                  }`}
-                  placeholder="0.00"
-                />
+                <button
+                  onClick={toggleModoDescGlobal}
+                  className="text-[10px] font-semibold text-gold border border-gold-light rounded px-1 py-0.5 hover:bg-blush-light transition-colors min-w-[28px] text-center"
+                  title="Cambiar modo descuento"
+                >
+                  {modoDescGlobal}
+                </button>
+                {modoDescGlobal === 'Q' ? (
+                  <input
+                    type="number"
+                    min={0}
+                    max={subtotalNeto}
+                    step={0.01}
+                    value={descuentoGlobal || ''}
+                    onChange={(e) => handleDescuentoGlobal(Number(e.target.value) || 0)}
+                    className={`w-16 text-center text-xs font-mono input-boutique py-0.5 px-1 transition-colors ${
+                      descGlobalAjustado ? 'border-boutique-danger' : ''
+                    }`}
+                    placeholder="0.00"
+                  />
+                ) : (
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={pctGlobal}
+                    onChange={(e) => handlePctGlobal(e.target.value)}
+                    className="w-16 text-center text-xs font-mono input-boutique py-0.5 px-1"
+                    placeholder="0%"
+                  />
+                )}
                 {descGlobalMonto > 0 && (
                   <span className="text-xs font-mono text-boutique-danger">-{formatPrecio(descGlobalMonto)}</span>
                 )}
@@ -430,7 +477,7 @@ export default function POSPage() {
               tabActivo === 'carrito' ? 'hidden md:flex md:flex-col' : 'flex flex-col'
             }`}
           >
-            <ProductSearch onAgregarProducto={handleProductoClick} reloadKey={catalogoReloadKey} />
+            <ProductSearch onAgregarProducto={handleProductoClick} onAgregarVariante={handleVarianteDirecta} reloadKey={catalogoReloadKey} />
           </div>
 
           {/* Panel carrito */}

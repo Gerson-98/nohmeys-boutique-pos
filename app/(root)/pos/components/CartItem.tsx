@@ -18,6 +18,8 @@ export function CartItemRow({ item, onCantidad, onDescuento, onEliminar }: Props
   const lineaFinal = lineaBase - descMonto;
 
   const [descAjustado, setDescAjustado] = useState(false);
+  const [modoDesc, setModoDesc] = useState<'Q' | '%'>('Q');
+  const [pctInput, setPctInput] = useState('');
   const descAjustadoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -34,6 +36,20 @@ export function CartItemRow({ item, onCantidad, onDescuento, onEliminar }: Props
       descAjustadoTimeoutRef.current = setTimeout(() => setDescAjustado(false), 1500);
     }
     onDescuento(item.varianteId, clamped);
+  }
+
+  function handlePct(raw: string) {
+    setPctInput(raw);
+    const pct = Math.min(100, Math.max(0, parseFloat(raw) || 0));
+    const monto = lineaBase * (pct / 100);
+    onDescuento(item.varianteId, Math.round(monto * 100) / 100);
+  }
+
+  function toggleModo() {
+    const nuevo = modoDesc === 'Q' ? '%' : 'Q';
+    setModoDesc(nuevo);
+    setPctInput('');
+    onDescuento(item.varianteId, 0);
   }
 
   return (
@@ -94,21 +110,40 @@ export function CartItemRow({ item, onCantidad, onDescuento, onEliminar }: Props
             </button>
           </div>
 
-          {/* Descuento ítem en Q */}
+          {/* Descuento ítem */}
           <div className="flex items-center gap-1">
-            <span className="text-[10px] text-boutique-gray-dark">Desc. Q</span>
-            <input
-              type="number"
-              min={0}
-              max={lineaBase}
-              step={0.01}
-              value={item.descuentoMonto || ''}
-              onChange={(e) => handleDescuento(Number(e.target.value) || 0)}
-              className={`w-16 text-center text-xs font-mono input-boutique py-0.5 px-1 transition-colors ${
-                descAjustado ? 'border-boutique-danger' : ''
-              }`}
-              placeholder="0.00"
-            />
+            <button
+              onClick={toggleModo}
+              className="text-[10px] font-semibold text-gold border border-gold-light rounded px-1 py-0.5 hover:bg-blush-light transition-colors min-w-[28px] text-center"
+              title="Cambiar modo descuento"
+            >
+              {modoDesc}
+            </button>
+            {modoDesc === 'Q' ? (
+              <input
+                type="number"
+                min={0}
+                max={lineaBase}
+                step={0.01}
+                value={item.descuentoMonto || ''}
+                onChange={(e) => handleDescuento(Number(e.target.value) || 0)}
+                className={`w-14 text-center text-xs font-mono input-boutique py-0.5 px-1 transition-colors ${
+                  descAjustado ? 'border-boutique-danger' : ''
+                }`}
+                placeholder="0.00"
+              />
+            ) : (
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step={1}
+                value={pctInput}
+                onChange={(e) => handlePct(e.target.value)}
+                className="w-14 text-center text-xs font-mono input-boutique py-0.5 px-1"
+                placeholder="0%"
+              />
+            )}
           </div>
 
           {/* Total línea */}

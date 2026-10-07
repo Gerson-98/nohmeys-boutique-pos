@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { CatProduct, PrismaClient } from '@prisma/client';
 import { NextResponse } from 'next/server';
 

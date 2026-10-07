@@ -1,15 +1,37 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { startOfDay, endOfDay, startOfMonth, subDays, format } from 'date-fns';
+
+export const dynamic = 'force-dynamic';
+import { subDays, format } from 'date-fns';
+import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 import { es } from 'date-fns/locale';
+
+const TZ = 'America/Guatemala';
+
+function inicioDelDia(date: Date): Date {
+  const local = toZonedTime(date, TZ);
+  local.setHours(0, 0, 0, 0);
+  return fromZonedTime(local, TZ);
+}
+function finDelDia(date: Date): Date {
+  const local = toZonedTime(date, TZ);
+  local.setHours(23, 59, 59, 999);
+  return fromZonedTime(local, TZ);
+}
+function inicioDelMes(date: Date): Date {
+  const local = toZonedTime(date, TZ);
+  local.setDate(1);
+  local.setHours(0, 0, 0, 0);
+  return fromZonedTime(local, TZ);
+}
 
 export async function GET() {
   try {
     const hoy = new Date();
-    const inicioHoy = startOfDay(hoy);
-    const finHoy = endOfDay(hoy);
-    const inicioMes = startOfMonth(hoy);
-    const hace7 = startOfDay(subDays(hoy, 6));
+    const inicioHoy = inicioDelDia(hoy);
+    const finHoy = finDelDia(hoy);
+    const inicioMes = inicioDelMes(hoy);
+    const hace7 = inicioDelDia(subDays(hoy, 6));
 
     // KPIs paralelos
     const [ventasHoy, ventasMes, totalClientes, cajaAbierta, stockBajo, detalles7, ultimasVentas] =
@@ -66,7 +88,7 @@ export async function GET() {
       const agg = await db.venta.aggregate({
         where: {
           estado: 'COMPLETADA',
-          createdAt: { gte: startOfDay(dia), lte: endOfDay(dia) },
+          createdAt: { gte: inicioDelDia(dia), lte: finDelDia(dia) },
         },
         _sum: { total: true },
       });

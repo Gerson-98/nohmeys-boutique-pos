@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
@@ -15,7 +16,9 @@ export async function GET(req: NextRequest) {
     if (q) {
       where.OR = [
         { nombre: { contains: q, mode: 'insensitive' } },
+        { marca: { contains: q, mode: 'insensitive' } },
         { variantes: { some: { sku: { contains: q, mode: 'insensitive' } } } },
+        { variantes: { some: { codigoBarras: { contains: q, mode: 'insensitive' } } } },
         { variantes: { some: { color: { contains: q, mode: 'insensitive' } } } },
         { categoria: { nombre: { contains: q, mode: 'insensitive' } } },
       ];
@@ -29,7 +32,7 @@ export async function GET(req: NextRequest) {
         variantes: {
           where: { isActive: true },
           select: {
-            id: true, sku: true, talla: true, color: true,
+            id: true, sku: true, codigoBarras: true, talla: true, color: true,
             colorHex: true, precioVenta: true, stockActual: true, stockMinimo: true,
           },
           orderBy: [{ talla: 'asc' }, { color: 'asc' }],

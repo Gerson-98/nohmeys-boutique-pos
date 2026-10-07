@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
@@ -22,6 +23,7 @@ export async function GET(req: NextRequest) {
           take: limite,
           include: {
             cajero: { select: { nombre: true } },
+            cerradoPor: { select: { nombre: true } },
             _count: { select: { ventas: true } },
           },
         }),
@@ -46,13 +48,14 @@ export async function GET(req: NextRequest) {
             detalles: {
               include: {
                 variante: {
-                  select: { sku: true, talla: true, color: true, producto: { select: { nombre: true } } },
+                  select: { sku: true, talla: true, color: true, producto: { select: { nombre: true, costo: true } } },
                 },
               },
             },
           },
         },
         devoluciones: { select: { detalle: true } },
+        gastos: { orderBy: { createdAt: 'asc' }, include: { registradoPor: { select: { nombre: true } } } },
       },
       orderBy: { abiertaEn: 'desc' },
     });
@@ -61,20 +64,20 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ data: null });
     }
 
-    // CAJERO: solo puede ver la caja abierta si él mismo la abrió
-    if (session?.rol === 'CAJERO' && cajaAbierta.cajeroId !== session.userId) {
-      return NextResponse.json({ data: null });
-    }
+    // Todos los roles pueden ver la caja abierta (para saber que hay un turno activo)
 
     // Calcular totales del turno
     const ventasCompletadas = cajaAbierta.ventas.filter((v) => v.estado !== 'ANULADA');
-    const todosPagos = ventasCompletadas.flatMap((v) => v.pagos);
+    // Para el flujo de efectivo se incluyen TODAS las ventas (incl. anuladas) porque el
+    // dinero físicamente entró y salió; la devolución ya registra el reembolso por separado.
+    const todasLasVentas = cajaAbierta.ventas;
+    const todosPagos = todasLasVentas.flatMap((v) => v.pagos);
 
     // El efectivo en caja es el monto recibido en efectivo menos el cambio entregado
     const totalEfectivoBruto = todosPagos
       .filter((p) => p.metodo === 'EFECTIVO')
       .reduce((s, p) => s + p.monto, 0);
-    const totalCambio = ventasCompletadas.reduce((s, v) => s + v.cambio, 0);
+    const totalCambio = todasLasVentas.reduce((s, v) => s + v.cambio, 0);
 
     // Ajuste de efectivo por devoluciones del turno (positivo = sale efectivo, negativo = entra efectivo)
     const totalAjusteDevoluciones = cajaAbierta.devoluciones.reduce((s, dev) => {
@@ -82,7 +85,15 @@ export async function GET(req: NextRequest) {
       return s + (typeof detalle?.ajusteEfectivo === 'number' ? detalle.ajusteEfectivo : 0);
     }, 0);
 
-    const totalEfectivo = totalEfectivoBruto - totalCambio - totalAjusteDevoluciones;
+    // Gastos e ingresos manuales de caja
+    const totalEgresos = cajaAbierta.gastos
+      .filter((g) => g.tipo === 'EGRESO')
+      .reduce((s, g) => s + g.monto, 0);
+    const totalIngresos = cajaAbierta.gastos
+      .filter((g) => g.tipo === 'INGRESO')
+      .reduce((s, g) => s + g.monto, 0);
+
+    const totalEfectivo = totalEfectivoBruto - totalCambio - totalAjusteDevoluciones - totalEgresos + totalIngresos;
 
     const totalTarjeta = todosPagos
       .filter((p) => p.metodo === 'TARJETA')
@@ -98,6 +109,12 @@ export async function GET(req: NextRequest) {
 
     const totalVentas = ventasCompletadas.reduce((s, v) => s + v.total, 0);
 
+    const costoTotal = ventasCompletadas.flatMap((v) => v.detalles).reduce(
+      (s, d) => s + (d.variante.producto as any).costo * d.cantidad,
+      0
+    );
+    const gananciaBruta = totalVentas - costoTotal;
+
     return NextResponse.json({
       data: {
         ...cajaAbierta,
@@ -108,6 +125,10 @@ export async function GET(req: NextRequest) {
           totalTarjeta,
           totalTransferencia,
           totalTransferenciaPendiente,
+          totalEgresos,
+          totalIngresos,
+          costoTotal,
+          gananciaBruta,
         },
       },
     });

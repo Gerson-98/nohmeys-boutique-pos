@@ -3,6 +3,7 @@ import { Trash2 } from 'lucide-react';
 
 export interface VarianteInput {
   sku: string;
+  codigoBarras: string;
   talla: string;
   color: string;
   colorHex: string;
@@ -17,89 +18,103 @@ interface Props {
   precioProducto: number;
   onChange: (index: number, field: keyof VarianteInput, value: string | number | null) => void;
   onRemove: (index: number) => void;
+  onAutoSku: (index: number) => void;
 }
 
-export function VarianteRow({ index, variante, precioProducto, onChange, onRemove }: Props) {
+export function VarianteRow({ index, variante, precioProducto, onChange, onRemove, onAutoSku }: Props) {
   return (
-    <tr className="border-b border-blush hover:bg-blush-light/40">
-      <td className="px-3 py-2">
-        <input
-          type="text"
-          value={variante.sku}
-          onChange={(e) => onChange(index, 'sku', e.target.value.toUpperCase())}
-          placeholder="VES001-AZM"
-          className="w-full input-boutique font-mono text-xs uppercase"
-        />
-      </td>
-      <td className="px-3 py-2">
-        <input
-          type="text"
-          value={variante.talla}
-          onChange={(e) => onChange(index, 'talla', e.target.value)}
-          placeholder="S / M / L / XL"
-          className="w-full input-boutique text-xs"
-        />
-      </td>
-      <td className="px-3 py-2">
-        <input
-          type="text"
-          value={variante.color}
-          onChange={(e) => onChange(index, 'color', e.target.value)}
-          placeholder="Azul marino"
-          className="w-full input-boutique text-xs"
-        />
-      </td>
-      <td className="px-3 py-2">
-        <div className="flex items-center gap-2">
+    <div className="rounded-xl border border-blush bg-white p-3 space-y-2">
+      {/* SKU + Código de barras externo + eliminar */}
+      <div className="flex items-start gap-2">
+        <div className="flex-1 min-w-0">
+          <label className="block text-[10px] font-medium text-boutique-gray-mid mb-0.5">SKU *</label>
           <input
-            type="color"
-            value={variante.colorHex || '#F2C4CE'}
-            onChange={(e) => onChange(index, 'colorHex', e.target.value)}
-            className="w-8 h-8 rounded-lg border border-gold-light cursor-pointer p-0.5"
+            type="text"
+            value={variante.sku}
+            onChange={(e) => onChange(index, 'sku', e.target.value.toUpperCase())}
+            onBlur={() => { if (!variante.sku.trim()) onAutoSku(index); }}
+            placeholder="Auto-generado al salir"
+            className="w-full input-boutique font-mono text-xs uppercase"
           />
-          <span className="text-xs font-mono text-boutique-gray-mid">{variante.colorHex || '—'}</span>
         </div>
-      </td>
-      <td className="px-3 py-2">
-        <input
-          type="number"
-          min={0}
-          step={0.01}
-          value={variante.precioVenta ?? ''}
-          onChange={(e) =>
-            onChange(index, 'precioVenta', e.target.value === '' ? null : parseFloat(e.target.value))
-          }
-          placeholder={`Hereda: Q ${precioProducto.toFixed(2)}`}
-          className="w-32 input-boutique text-xs text-center font-mono"
-        />
-      </td>
-      <td className="px-3 py-2">
-        <input
-          type="number"
-          min={0}
-          value={variante.stockActual}
-          onChange={(e) => onChange(index, 'stockActual', parseInt(e.target.value) || 0)}
-          className="w-20 input-boutique text-xs text-center font-mono"
-        />
-      </td>
-      <td className="px-3 py-2">
-        <input
-          type="number"
-          min={0}
-          value={variante.stockMinimo}
-          onChange={(e) => onChange(index, 'stockMinimo', parseInt(e.target.value) || 0)}
-          className="w-20 input-boutique text-xs text-center font-mono"
-        />
-      </td>
-      <td className="px-3 py-2 text-center">
+        <div className="flex-1 min-w-0">
+          <label className="block text-[10px] font-medium text-boutique-gray-mid mb-0.5">
+            Cód. barras externo
+          </label>
+          <input
+            type="text"
+            value={variante.codigoBarras}
+            onChange={(e) => onChange(index, 'codigoBarras', e.target.value)}
+            placeholder="7501055300059 (opcional)"
+            className="w-full input-boutique font-mono text-xs"
+          />
+        </div>
         <button
           type="button"
           onClick={() => onRemove(index)}
-          className="p-1.5 rounded-lg hover:bg-boutique-danger/10 text-boutique-danger transition-colors min-w-[44px] min-h-[44px]"
+          className="mt-5 p-2 rounded-lg hover:bg-boutique-danger/10 text-boutique-danger transition-colors flex-shrink-0"
         >
           <Trash2 size={14} />
         </button>
-      </td>
-    </tr>
+      </div>
+
+      {/* Talla + Color + Precio + Stock + Mín */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+        <div>
+          <label className="block text-[10px] font-medium text-boutique-gray-mid mb-0.5">Talla</label>
+          <input
+            type="text"
+            value={variante.talla}
+            onChange={(e) => onChange(index, 'talla', e.target.value)}
+            placeholder="S / M / XL"
+            className="w-full input-boutique text-xs"
+          />
+        </div>
+        <div>
+          <label className="block text-[10px] font-medium text-boutique-gray-mid mb-0.5">Color</label>
+          <input
+            type="text"
+            value={variante.color}
+            onChange={(e) => onChange(index, 'color', e.target.value)}
+            placeholder="Azul"
+            className="w-full input-boutique text-xs"
+          />
+        </div>
+        <div>
+          <label className="block text-[10px] font-medium text-boutique-gray-mid mb-0.5">Precio (Q)</label>
+          <input
+            type="number"
+            min={0}
+            step={0.01}
+            value={variante.precioVenta ?? ''}
+            onChange={(e) =>
+              onChange(index, 'precioVenta', e.target.value === '' ? null : parseFloat(e.target.value))
+            }
+            placeholder={precioProducto.toFixed(2)}
+            className="w-full input-boutique text-xs text-center font-mono"
+          />
+        </div>
+        <div>
+          <label className="block text-[10px] font-medium text-boutique-gray-mid mb-0.5">Stock</label>
+          <input
+            type="number"
+            min={0}
+            value={variante.stockActual}
+            onChange={(e) => onChange(index, 'stockActual', parseInt(e.target.value) || 0)}
+            className="w-full input-boutique text-xs text-center font-mono"
+          />
+        </div>
+        <div>
+          <label className="block text-[10px] font-medium text-boutique-gray-mid mb-0.5">Stock mín.</label>
+          <input
+            type="number"
+            min={0}
+            value={variante.stockMinimo}
+            onChange={(e) => onChange(index, 'stockMinimo', parseInt(e.target.value) || 0)}
+            className="w-full input-boutique text-xs text-center font-mono"
+          />
+        </div>
+      </div>
+    </div>
   );
 }

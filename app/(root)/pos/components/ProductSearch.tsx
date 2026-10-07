@@ -8,10 +8,11 @@ import { ProductPreviewModal } from '@/components/boutique/ProductPreviewModal';
 
 interface Props {
   onAgregarProducto: (producto: ProductoPOS) => void;
+  onAgregarVariante?: (producto: ProductoPOS, variante: import('../types').VariantePOS) => void;
   reloadKey?: number;
 }
 
-export function ProductSearch({ onAgregarProducto, reloadKey }: Props) {
+export function ProductSearch({ onAgregarProducto, onAgregarVariante, reloadKey }: Props) {
   const [q, setQ] = useState('');
   const [categoriaId, setCategoriaId] = useState('');
   const [categorias, setCategorias] = useState<{ id: string; nombre: string; icono: string | null }[]>([]);
@@ -55,6 +56,85 @@ export function ProductSearch({ onAgregarProducto, reloadKey }: Props) {
     return [];
   }, []);
 
+  // Lógica de escaneo centralizada — usada por el input y el listener global
+  const triggerScan = useCallback(async (sku: string) => {
+    if (!sku) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    const resultados = await buscar(sku, '');
+
+    let productoMatch: ProductoPOS | null = null;
+    let variantaExacta: import('../types').VariantePOS | null = null;
+
+    for (const prod of resultados) {
+      const v = prod.variantes.find(
+        (vv: { sku: string; codigoBarras?: string | null }) =>
+          vv.sku.toLowerCase() === sku.toLowerCase() ||
+          (vv.codigoBarras && vv.codigoBarras === sku)
+      );
+      if (v) { productoMatch = prod; variantaExacta = v; break; }
+    }
+
+    if (productoMatch && variantaExacta) {
+      if (onAgregarVariante) onAgregarVariante(productoMatch, variantaExacta);
+      else onAgregarProducto(productoMatch);
+      setScanFeedback('ok');
+      setQ('');
+      buscar('', categoriaId);
+    } else if (resultados.length === 1) {
+      onAgregarProducto(resultados[0]);
+      setScanFeedback('ok');
+      setQ('');
+      buscar('', categoriaId);
+    } else {
+      setScanFeedback('error');
+    }
+    setTimeout(() => setScanFeedback(null), 1500);
+  }, [buscar, categoriaId, onAgregarProducto, onAgregarVariante]);
+
+  // Listener global: captura el escáner aunque el input no esté enfocado
+  useEffect(() => {
+    let buffer = '';
+    let lastKeyTime = 0;
+    let clearTimer: ReturnType<typeof setTimeout> | null = null;
+
+    function onGlobalKey(e: KeyboardEvent) {
+      const active = document.activeElement;
+      // Si el foco ya está en nuestro input, lo maneja handleKeyDown
+      if (active === inputRef.current) return;
+      // Si el foco está en otro campo de texto, no interceptar
+      if (active && ['INPUT', 'TEXTAREA', 'SELECT'].includes((active as HTMLElement).tagName)) return;
+
+      const now = Date.now();
+
+      if (e.key === 'Enter') {
+        if (buffer.length > 2) {
+          e.preventDefault();
+          const sku = buffer.trim();
+          buffer = '';
+          if (clearTimer) clearTimeout(clearTimer);
+          triggerScan(sku);
+        }
+        return;
+      }
+
+      if (e.key.length !== 1) return;
+
+      if (now - lastKeyTime < 80) {
+        buffer += e.key;
+      } else {
+        buffer = e.key;
+      }
+      lastKeyTime = now;
+
+      if (clearTimer) clearTimeout(clearTimer);
+      clearTimer = setTimeout(() => { buffer = ''; }, 500);
+    }
+
+    document.addEventListener('keydown', onGlobalKey);
+    return () => document.removeEventListener('keydown', onGlobalKey);
+  }, [triggerScan]);
+
   function handleQ(value: string) {
     setQ(value);
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -66,64 +146,17 @@ export function ProductSearch({ onAgregarProducto, reloadKey }: Props) {
     buscar(q, id);
   }
 
-  // ── Lógica de escaneo ────────────────────────────────────
-  // El escáner envía todos los chars en < 50ms luego un Enter.
-  // Detectamos eso y agregamos automáticamente al carrito.
   async function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    const now = Date.now();
-    const timeSinceLast = now - lastKeyTimeRef.current;
-    lastKeyTimeRef.current = now;
-
     if (e.key === 'Enter') {
-      const sku = q.trim();
-      if (!sku) return;
-
-      // Cancelar debounce pendiente
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-
-      // Buscar exactamente ese SKU
-      const resultados = await buscar(sku, '');
-
-      // Buscar la variante que coincide exactamente con el SKU
-      let productoMatch: ProductoPOS | null = null;
-      for (const prod of resultados) {
-        const varExacta = prod.variantes.find(
-          (v: { sku: string }) => v.sku.toLowerCase() === sku.toLowerCase()
-        );
-        if (varExacta) {
-          productoMatch = prod;
-          break;
-        }
-      }
-
-      if (productoMatch) {
-        onAgregarProducto(productoMatch);
-        setScanFeedback('ok');
-        setQ('');
-        // Reload catálogo limpio
-        buscar('', categoriaId);
-      } else if (resultados.length === 1) {
-        // Un único resultado aunque no sea match exacto
-        onAgregarProducto(resultados[0]);
-        setScanFeedback('ok');
-        setQ('');
-        buscar('', categoriaId);
-      } else {
-        setScanFeedback('error');
-      }
-
-      setTimeout(() => setScanFeedback(null), 1500);
       e.preventDefault();
+      await triggerScan(q.trim());
       return;
     }
-
-    // Acumular buffer del escáner para detectar velocidad
-    if (timeSinceLast < 50) {
-      scanBufferRef.current += e.key;
-    } else {
-      scanBufferRef.current = e.key;
-    }
+    // Tracking de velocidad de teclas (por si se quiere usar en el futuro)
+    const now = Date.now();
+    lastKeyTimeRef.current = now;
   }
+
 
   return (
     <>

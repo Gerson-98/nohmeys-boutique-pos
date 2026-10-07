@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   DollarSign, Lock, Unlock, RefreshCw, CreditCard, Banknote,
   AlertTriangle, CheckCircle, ChevronDown, Wifi, X, History, Calendar,
+  ArrowDownCircle, ArrowUpCircle, Plus,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { formatPrecio } from '@/lib/boutique';
@@ -28,6 +29,15 @@ interface VentaCaja {
   detalles: DetalleItem[];
 }
 
+interface GastoCaja {
+  id: string;
+  concepto: string;
+  tipo: 'EGRESO' | 'INGRESO';
+  monto: number;
+  createdAt: string;
+  registradoPor: { nombre: string } | null;
+}
+
 interface ResumenCaja {
   cantidadVentas: number;
   totalVentas: number;
@@ -35,6 +45,10 @@ interface ResumenCaja {
   totalTarjeta: number;
   totalTransferencia: number;
   totalTransferenciaPendiente: number;
+  totalEgresos: number;
+  totalIngresos: number;
+  costoTotal: number;
+  gananciaBruta: number;
 }
 
 interface CajaActual {
@@ -45,6 +59,7 @@ interface CajaActual {
   cajero: { nombre: string };
   resumen: ResumenCaja;
   ventas: VentaCaja[];
+  gastos: GastoCaja[];
 }
 
 interface HistorialCaja {
@@ -59,6 +74,7 @@ interface HistorialCaja {
   diferencia: number | null;
   notas: string | null;
   cajero: { nombre: string };
+  cerradoPor: { nombre: string } | null;
   _count: { ventas: number };
 }
 
@@ -91,6 +107,14 @@ export default function CajaPage() {
   const [historialPag, setHistorialPag] = useState(1);
   const [cargandoHistorial, setCargandoHistorial] = useState(false);
   const [expandidoH, setExpandidoH] = useState<string | null>(null);
+
+  // Gastos de caja
+  const [gastoConcepto, setGastoConcepto] = useState('');
+  const [gastoTipo, setGastoTipo] = useState<'EGRESO' | 'INGRESO'>('EGRESO');
+  const [gastoMonto, setGastoMonto] = useState<number | ''>('');
+  const [registrandoGasto, setRegistrandoGasto] = useState(false);
+  const [mostrarFormGasto, setMostrarFormGasto] = useState(false);
+
   // Usuario de la sesión HTTP (no localStorage)
   const [sesionUsuario, setSesionUsuario] = useState<{ id: string; nombre: string; rol: string } | null>(null);
 
@@ -189,8 +213,48 @@ export default function CajaPage() {
     }
   }
 
+  async function registrarGasto() {
+    if (!caja) return;
+    if (!gastoConcepto.trim()) { toast.error('Ingresa el concepto'); return; }
+    if (!gastoMonto || (gastoMonto as number) <= 0) { toast.error('El monto debe ser mayor a 0'); return; }
+    setRegistrandoGasto(true);
+    try {
+      const res = await fetch('/api/caja/gastos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ concepto: gastoConcepto, tipo: gastoTipo, monto: gastoMonto, cierreCajaId: caja.id }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error);
+      toast.success(`${gastoTipo === 'EGRESO' ? 'Gasto' : 'Ingreso'} registrado`);
+      setGastoConcepto('');
+      setGastoMonto('');
+      setMostrarFormGasto(false);
+      cargar();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Error al registrar');
+    } finally {
+      setRegistrandoGasto(false);
+    }
+  }
+
   const efectivoEsperado = caja ? caja.fondoInicial + caja.resumen.totalEfectivo : 0;
   const diferencia = efectivoFisico !== '' ? (efectivoFisico as number) - efectivoEsperado : null;
+
+  // Desglose de ventas por vendedor en el turno actual
+  const ventasPorVendedor = caja
+    ? Object.values(
+        caja.ventas
+          .filter((v) => v.estado !== 'ANULADA')
+          .reduce<Record<string, { nombre: string; cantidad: number; total: number }>>((acc, v) => {
+            const nombre = v.cajero?.nombre ?? 'Desconocido';
+            if (!acc[nombre]) acc[nombre] = { nombre, cantidad: 0, total: 0 };
+            acc[nombre].cantidad += 1;
+            acc[nombre].total += v.total;
+            return acc;
+          }, {})
+      ).sort((a, b) => b.total - a.total)
+    : [];
 
   return (
     <>
@@ -251,7 +315,12 @@ export default function CajaPage() {
                         <div className="flex items-center gap-3 min-w-0">
                           <Calendar size={15} className="text-gold flex-shrink-0" />
                           <div className="min-w-0">
-                            <p className="text-sm font-medium text-boutique-dark">{h.cajero.nombre}</p>
+                            <p className="text-sm font-medium text-boutique-dark">
+                              Abierta por {h.cajero.nombre}
+                              {h.cerradoPor && h.cerradoPor.nombre !== h.cajero.nombre && (
+                                <span className="text-boutique-gray-mid font-normal"> · Cerrada por {h.cerradoPor.nombre}</span>
+                              )}
+                            </p>
                             <p className="text-xs text-boutique-gray-mid">{abierta} → {cerrada}</p>
                           </div>
                         </div>
@@ -401,6 +470,117 @@ export default function CajaPage() {
               ))}
             </div>
 
+            {/* Desglose por vendedor */}
+            {ventasPorVendedor.length > 0 && (
+              <div className="card-boutique p-4">
+                <h2 className="font-playfair text-sm font-semibold text-boutique-dark mb-3">Ventas por vendedor</h2>
+                <div className="space-y-2">
+                  {ventasPorVendedor.map((v) => (
+                    <div key={v.nombre} className="flex items-center justify-between text-sm">
+                      <span className="text-boutique-dark">{v.nombre}</span>
+                      <div className="flex items-center gap-4">
+                        <span className="text-xs text-boutique-gray-mid">{v.cantidad} venta{v.cantidad !== 1 ? 's' : ''}</span>
+                        <span className="font-mono font-bold text-gold">{formatPrecio(v.total)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Gastos e ingresos de caja */}
+            <div className="card-boutique overflow-hidden">
+              <div className="px-4 py-3 border-b border-blush flex items-center justify-between bg-boutique-white">
+                <h2 className="font-playfair text-base font-semibold text-boutique-dark">Gastos e ingresos de caja</h2>
+                <button
+                  onClick={() => setMostrarFormGasto((p) => !p)}
+                  className="flex items-center gap-1.5 text-xs btn-boutique-primary px-3 py-1.5"
+                >
+                  <Plus size={12} /> Registrar
+                </button>
+              </div>
+
+              {/* Formulario */}
+              {mostrarFormGasto && (
+                <div className="px-4 py-3 border-b border-blush bg-blush-light space-y-3">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setGastoTipo('EGRESO')}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium border transition-colors ${gastoTipo === 'EGRESO' ? 'bg-boutique-danger text-white border-boutique-danger' : 'border-blush text-boutique-gray-mid bg-white'}`}
+                    >
+                      <ArrowDownCircle size={13} /> Gasto (sale dinero)
+                    </button>
+                    <button
+                      onClick={() => setGastoTipo('INGRESO')}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium border transition-colors ${gastoTipo === 'INGRESO' ? 'bg-boutique-success text-white border-boutique-success' : 'border-blush text-boutique-gray-mid bg-white'}`}
+                    >
+                      <ArrowUpCircle size={13} /> Ingreso (entra dinero)
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      value={gastoConcepto}
+                      onChange={(e) => setGastoConcepto(e.target.value)}
+                      placeholder="Concepto (ej: Comida, Limpieza…)"
+                      className="input-boutique text-sm col-span-1"
+                    />
+                    <input
+                      type="number"
+                      min={0.01} step={0.01}
+                      value={gastoMonto}
+                      onChange={(e) => setGastoMonto(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                      placeholder="Monto (Q)"
+                      className="input-boutique text-sm font-mono text-center"
+                    />
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => setMostrarFormGasto(false)} className="text-xs text-boutique-gray-mid px-3 py-1.5">Cancelar</button>
+                    <button
+                      onClick={registrarGasto}
+                      disabled={registrandoGasto}
+                      className="btn-boutique-primary text-xs px-4 py-1.5 disabled:opacity-60"
+                    >
+                      {registrandoGasto ? 'Guardando…' : 'Guardar'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Lista de gastos */}
+              {(!caja.gastos || caja.gastos.length === 0) ? (
+                <p className="text-xs text-boutique-gray-mid text-center py-5">Sin movimientos registrados.</p>
+              ) : (
+                <div className="divide-y divide-blush">
+                  {caja.gastos.map((g) => (
+                    <div key={g.id} className="px-4 py-2.5 flex items-center justify-between">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        {g.tipo === 'EGRESO'
+                          ? <ArrowDownCircle size={15} className="text-boutique-danger flex-shrink-0" />
+                          : <ArrowUpCircle size={15} className="text-boutique-success flex-shrink-0" />}
+                        <div className="min-w-0">
+                          <p className="text-sm text-boutique-dark truncate">{g.concepto}</p>
+                          {g.registradoPor && <p className="text-xs text-boutique-gray-mid">{g.registradoPor.nombre}</p>}
+                        </div>
+                      </div>
+                      <span className={`font-mono font-bold text-sm flex-shrink-0 ml-3 ${g.tipo === 'EGRESO' ? 'text-boutique-danger' : 'text-boutique-success'}`}>
+                        {g.tipo === 'EGRESO' ? '-' : '+'}{formatPrecio(g.monto)}
+                      </span>
+                    </div>
+                  ))}
+                  {/* Totales */}
+                  {(caja.resumen.totalEgresos > 0 || caja.resumen.totalIngresos > 0) && (
+                    <div className="px-4 py-2.5 bg-boutique-white flex justify-between text-xs font-semibold text-boutique-dark">
+                      <span>Neto gastos/ingresos</span>
+                      <span className={`font-mono ${caja.resumen.totalIngresos - caja.resumen.totalEgresos >= 0 ? 'text-boutique-success' : 'text-boutique-danger'}`}>
+                        {caja.resumen.totalIngresos - caja.resumen.totalEgresos >= 0 ? '+' : ''}{formatPrecio(caja.resumen.totalIngresos - caja.resumen.totalEgresos)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Transferencias pendientes (informativo) */}
             {caja.resumen.totalTransferenciaPendiente > 0 && (
               <div className="card-boutique p-4 flex items-center gap-3 bg-boutique-warning/10 border border-boutique-warning">
@@ -485,18 +665,15 @@ export default function CajaPage() {
               )}
             </div>
 
-            {/* Aviso si la caja activa es de otro usuario y el actual es cajero */}
-            {cajero && cajero.rol === 'CAJERO' && caja.cajeroId !== cajero.id && (
-              <div className="card-boutique p-4 flex items-center gap-3 bg-boutique-warning/10 border border-boutique-warning">
-                <AlertTriangle size={18} className="text-boutique-warning flex-shrink-0" />
+            {/* Cierre de caja — solo quien abrió o admin/supervisor */}
+            {cajero && cajero.rol === 'CAJERO' && caja.cajeroId !== cajero.id ? (
+              <div className="card-boutique p-4 flex items-center gap-3 bg-blush-light border border-blush">
+                <CheckCircle size={18} className="text-gold flex-shrink-0" />
                 <p className="text-sm text-boutique-dark">
-                  Esta caja fue abierta por <strong>{caja.cajero.nombre}</strong>. Solo puedes ver el resumen; no puedes cerrarla.
+                  Turno abierto por <strong>{caja.cajero.nombre}</strong>. Puedes realizar ventas en este turno.
                 </p>
               </div>
-            )}
-
-            {/* Cierre de caja — solo si la caja es propia o el usuario es admin/supervisor */}
-            {(!cajero || cajero.rol !== 'CAJERO' || caja.cajeroId === cajero.id) && (
+            ) : (
             <div className="card-boutique p-5 space-y-4">
               <h2 className="font-playfair text-lg font-semibold text-boutique-dark flex items-center gap-2">
                 <Lock size={18} className="text-gold" aria-hidden="true" /> Cerrar caja
@@ -608,6 +785,18 @@ export default function CajaPage() {
                   <span className="text-boutique-gray-mid">Cobrado en efectivo</span>
                   <span className="font-mono">+{formatPrecio(caja.resumen.totalEfectivo)}</span>
                 </div>
+                {caja.resumen.totalEgresos > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-boutique-gray-mid">Gastos de caja</span>
+                    <span className="font-mono text-boutique-danger">-{formatPrecio(caja.resumen.totalEgresos)}</span>
+                  </div>
+                )}
+                {caja.resumen.totalIngresos > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-boutique-gray-mid">Ingresos adicionales</span>
+                    <span className="font-mono text-boutique-success">+{formatPrecio(caja.resumen.totalIngresos)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm font-semibold border-t border-blush pt-1">
                   <span className="text-boutique-dark">Efectivo esperado</span>
                   <span className="font-mono">{formatPrecio(efectivoEsperado)}</span>
@@ -624,6 +813,31 @@ export default function CajaPage() {
                     </div>
                   </>
                 )}
+              </div>
+
+              {/* Ganancia bruta (informativo) */}
+              <div className="bg-blush-light border border-gold-light rounded-xl p-4 space-y-1.5">
+                <h3 className="text-xs font-semibold text-boutique-dark mb-2">Ganancia del turno <span className="font-normal text-boutique-gray-mid">(informativo)</span></h3>
+                <div className="flex justify-between text-sm">
+                  <span className="text-boutique-gray-mid">Total facturado</span>
+                  <span className="font-mono">{formatPrecio(caja.resumen.totalVentas)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-boutique-gray-mid">Costo de productos vendidos</span>
+                  <span className="font-mono text-boutique-danger">-{formatPrecio(caja.resumen.costoTotal)}</span>
+                </div>
+                {caja.resumen.totalEgresos > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-boutique-gray-mid">Gastos de caja</span>
+                    <span className="font-mono text-boutique-danger">-{formatPrecio(caja.resumen.totalEgresos)}</span>
+                  </div>
+                )}
+                <div className="border-t border-gold-light pt-2 flex justify-between font-bold">
+                  <span className="text-sm text-boutique-dark">Ganancia bruta estimada</span>
+                  <span className={`font-mono text-base ${caja.resumen.gananciaBruta - caja.resumen.totalEgresos >= 0 ? 'text-boutique-success' : 'text-boutique-danger'}`}>
+                    {formatPrecio(caja.resumen.gananciaBruta - caja.resumen.totalEgresos)}
+                  </span>
+                </div>
               </div>
 
               <div className="flex gap-3 pt-2">

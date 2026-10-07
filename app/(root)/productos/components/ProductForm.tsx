@@ -16,6 +16,7 @@ export interface ProductoData {
   id: string;
   nombre: string;
   descripcion: string | null;
+  marca: string | null;
   imagenUrl: string | null;
   categoriaId: string;
   costo: number;
@@ -32,6 +33,7 @@ interface Props {
 
 const varianteVacia = (): VarianteInput => ({
   sku: '',
+  codigoBarras: '',
   talla: '',
   color: '',
   colorHex: '#F2C4CE',
@@ -47,6 +49,7 @@ export function ProductForm({ modo, productoInicial, onSuccess, onCancel }: Prop
 
   const [nombre, setNombre] = useState(productoInicial?.nombre ?? '');
   const [descripcion, setDescripcion] = useState(productoInicial?.descripcion ?? '');
+  const [marca, setMarca] = useState(productoInicial?.marca ?? '');
   const [imagenUrl, setImagenUrl] = useState(productoInicial?.imagenUrl ?? '');
   const [categoriaId, setCategoriaId] = useState(productoInicial?.categoriaId ?? '');
   const [costo, setCosto] = useState<number>(productoInicial?.costo ?? 0);
@@ -131,19 +134,52 @@ export function ProductForm({ modo, productoInicial, onSuccess, onCancel }: Prop
     setVariantes((prev) => prev.map((v) => ({ ...v, precioVenta: precioVenta })));
   }
 
-  function autoGenerarSKUs() {
+  function buildSkuBase() {
+    const catNombre = categorias.find((c) => c.id === categoriaId)?.nombre || '';
+    const catCode = (catNombre.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ]/g, '').toUpperCase().substring(0, 3)) || 'CAT';
+    // Usar la última palabra del nombre para diferenciar productos de la misma categoría
+    const palabras = nombre.trim().split(/\s+/).filter((p) => p.length > 0);
+    const palabraClave = palabras.length > 1 ? palabras[palabras.length - 1] : palabras[0] || 'PRD';
+    const nameCode = (palabraClave.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ0-9]/g, '').toUpperCase().substring(0, 4)) || 'PRD';
+    return `${catCode}${nameCode}`;
+  }
+
+  function autoSKUVariante(index: number) {
+    if (!nombre.trim()) return;
+    const base = buildSkuBase();
+    setVariantes((prev) => {
+      const existingSkus = new Set(prev.map((v, i) => i !== index ? v.sku : '').filter(Boolean));
+      const v = prev[index];
+      let sku = generarSKU(base, v.color || '', v.talla || '');
+      let sufijo = 2;
+      while (existingSkus.has(sku)) { sku = `${generarSKU(base, v.color || '', v.talla || '')}-${sufijo}`; sufijo++; }
+      const copia = [...prev];
+      copia[index] = { ...copia[index], sku };
+      return copia;
+    });
+  }
+
+  async function autoGenerarSKUs() {
     if (!nombre.trim()) {
       toast.error('Ingrese el nombre del producto antes de generar los SKU');
       return;
     }
-    const catNombre = categorias.find((c) => c.id === categoriaId)?.nombre || '';
-    const catCode = (catNombre.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ]/g, '').toUpperCase().substring(0, 3)) || 'CAT';
-    const nameCode = (nombre.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ]/g, '').toUpperCase().substring(0, 3)) || 'PRD';
-    const base = `${catCode}${nameCode}`;
+    const base = buildSkuBase();
+    let skusEnBd = new Set<string>();
+    try {
+      const r = await fetch('/api/productos?limite=1000');
+      const d = await r.json();
+      if (d.data) {
+        for (const p of d.data) {
+          if (p.variantes) for (const v of p.variantes) skusEnBd.add(v.sku?.toUpperCase());
+        }
+      }
+    } catch { /* continuar sin verificación remota */ }
 
-    const skusUsados = new Set<string>();
+    const skusUsados = new Set<string>(Array.from(skusEnBd));
     setVariantes((prev) =>
       prev.map((v) => {
+        if (v.sku.trim()) { skusUsados.add(v.sku.trim().toUpperCase()); return v; }
         let sku = generarSKU(base, v.color || '', v.talla || '');
         let sufijo = 2;
         while (skusUsados.has(sku)) {
@@ -173,11 +209,38 @@ export function ProductForm({ modo, productoInicial, onSuccess, onCancel }: Prop
       return;
     }
 
-    const variantesConDatos = variantes.filter((v) => v.sku.trim());
-    if (variantes.length > 0 && variantesConDatos.length === 0) {
-      toast.error('Cada variante debe tener un SKU');
-      return;
-    }
+    // Auto-generar SKU para variantes que no tienen uno al guardar
+    const base = buildSkuBase();
+    // Consultar SKUs ya existentes en la BD para evitar colisiones
+    let skusEnBd = new Set<string>();
+    try {
+      const r = await fetch('/api/productos?limite=1000');
+      const d = await r.json();
+      if (d.data) {
+        for (const p of d.data) {
+          if (p.variantes) for (const v of p.variantes) skusEnBd.add(v.sku?.toUpperCase());
+        }
+      }
+    } catch { /* si falla, seguimos sin la verificación remota */ }
+
+    const skusUsados = new Set<string>(Array.from(skusEnBd));
+    const variantesFinales = variantes.map((v) => {
+      if (v.sku.trim()) {
+        skusUsados.add(v.sku.trim().toUpperCase());
+        return v;
+      }
+      let sku = generarSKU(base, v.color || '', v.talla || '');
+      let sufijo = 2;
+      while (skusUsados.has(sku)) {
+        sku = `${generarSKU(base, v.color || '', v.talla || '')}-${sufijo}`;
+        sufijo++;
+      }
+      skusUsados.add(sku);
+      return { ...v, sku };
+    });
+    setVariantes(variantesFinales);
+
+    const variantesConDatos = variantesFinales;
     const skus = variantesConDatos.map((v) => v.sku.trim().toUpperCase());
     const skusDuplicados = Array.from(new Set(skus.filter((s, i) => skus.indexOf(s) !== i)));
     if (skusDuplicados.length > 0) {
@@ -197,6 +260,7 @@ export function ProductForm({ modo, productoInicial, onSuccess, onCancel }: Prop
         body: JSON.stringify({
           nombre: nombre.trim(),
           descripcion,
+          marca: marca.trim() || null,
           imagenUrl,
           categoriaId,
           costo,
@@ -332,6 +396,20 @@ export function ProductForm({ modo, productoInicial, onSuccess, onCancel }: Prop
             className="w-full input-boutique"
           />
         </div>
+
+        <div>
+          <label className="block text-xs font-medium text-boutique-dark mb-1">
+            Marca <span className="text-boutique-gray-mid font-normal">(opcional)</span>
+          </label>
+          <input
+            type="text"
+            value={marca}
+            onChange={(e) => setMarca(e.target.value)}
+            placeholder="Ej: Nike, Zara, Sin marca"
+            maxLength={60}
+            className="w-full input-boutique"
+          />
+        </div>
       </div>
 
       {/* Precios */}
@@ -424,47 +502,23 @@ export function ProductForm({ modo, productoInicial, onSuccess, onCancel }: Prop
           </div>
         </div>
 
-        <div className="rounded-xl border border-blush">
-          <table className="w-full text-sm table-fixed">
-            <colgroup>
-              <col style={{ width: '22%' }} />
-              <col style={{ width: '12%' }} />
-              <col style={{ width: '14%' }} />
-              <col style={{ width: '10%' }} />
-              <col style={{ width: '17%' }} />
-              <col style={{ width: '10%' }} />
-              <col style={{ width: '10%' }} />
-              <col style={{ width: '5%' }} />
-            </colgroup>
-            <thead>
-              <tr className="bg-blush-light">
-                <th className="px-2.5 py-2 text-left text-xs font-medium text-boutique-dark">SKU *</th>
-                <th className="px-2.5 py-2 text-left text-xs font-medium text-boutique-dark">Talla</th>
-                <th className="px-2.5 py-2 text-left text-xs font-medium text-boutique-dark">Color</th>
-                <th className="px-2.5 py-2 text-left text-xs font-medium text-boutique-dark">HEX</th>
-                <th className="px-2.5 py-2 text-center text-xs font-medium text-boutique-dark">Precio</th>
-                <th className="px-2.5 py-2 text-center text-xs font-medium text-boutique-dark">Stock</th>
-                <th className="px-2.5 py-2 text-center text-xs font-medium text-boutique-dark">Mín.</th>
-                <th className="px-2.5 py-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {variantes.map((v, i) => (
-                <VarianteRow
-                  key={i}
-                  index={i}
-                  variante={v}
-                  precioProducto={precioVenta}
-                  onChange={handleVarianteChange}
-                  onRemove={(idx) => setVariantes((p) => p.filter((_, j) => j !== idx))}
-                />
-              ))}
-            </tbody>
-          </table>
-          {variantes.length === 0 && (
-            <p className="text-center text-xs text-boutique-gray-mid py-5">
+        <div className="max-h-[420px] overflow-y-auto space-y-2 pr-0.5">
+          {variantes.length === 0 ? (
+            <p className="text-center text-xs text-boutique-gray-mid py-5 border border-dashed border-blush rounded-xl">
               Sin variantes. Haz clic en &quot;Agregar&quot; para añadir.
             </p>
+          ) : (
+            variantes.map((v, i) => (
+              <VarianteRow
+                key={i}
+                index={i}
+                variante={v}
+                precioProducto={precioVenta}
+                onChange={handleVarianteChange}
+                onRemove={(idx) => setVariantes((p) => p.filter((_, j) => j !== idx))}
+                onAutoSku={autoSKUVariante}
+              />
+            ))
           )}
         </div>
       </div>

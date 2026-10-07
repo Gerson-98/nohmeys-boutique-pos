@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { MetodoPago } from '@prisma/client';
@@ -108,21 +109,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Si el cajero que vende no es admin/supervisor, solo puede vender si la caja abierta es suya
-    const cajeroVendedor = await db.user.findUnique({
-      where: { id: cajeroId },
-      select: { rol: true },
-    });
-    if (cajeroVendedor?.rol === 'CAJERO' && cajaAbierta.cajeroId !== cajeroId) {
-      return NextResponse.json(
-        { error: `No puedes vender: la caja activa fue abierta por ${cajaAbierta.cajero.nombre}. Abre tu propia caja para poder vender.` },
-        { status: 403 }
-      );
-    }
-    // Admin/Supervisor también reciben aviso si la caja fue abierta por otro cajero
-    // (solo informativo: pueden vender igual, pero el sistema registra la venta en esa caja)
-    // No se bloquea al admin.
-
+    // Cualquier usuario activo puede vender en la caja abierta (la venta queda a su nombre)
     const cajaId = cierreCajaId || cajaAbierta.id;
 
     // Verificar stock antes de la transacción

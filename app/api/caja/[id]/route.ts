@@ -1,5 +1,7 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getSessionFromRequest } from '@/lib/auth';
 
 export async function GET(
   _req: NextRequest,
@@ -29,22 +31,25 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await getSessionFromRequest(req);
     const { efectivoFisico, notas } = await req.json();
 
     const caja = await db.cierreCaja.findUnique({
       where: { id: params.id },
       include: {
         ventas: {
-          where: { estado: { not: 'ANULADA' } },
           include: { pagos: { include: { transferencia: { select: { estado: true } } } } },
         },
         devoluciones: { select: { detalle: true } },
+        gastos: true,
       },
     });
 
     if (!caja) return NextResponse.json({ error: 'Caja no encontrada' }, { status: 404 });
     if (caja.estado === 'CERRADA') return NextResponse.json({ error: 'La caja ya está cerrada' }, { status: 409 });
 
+    // Para el flujo de efectivo se incluyen TODAS las ventas (incl. anuladas) porque el
+    // dinero físicamente entró y salió; la devolución ya registra el reembolso.
     const todosPagos = caja.ventas.flatMap((v) => v.pagos);
 
     // El efectivo en caja es el monto recibido en efectivo menos el cambio entregado
@@ -72,20 +77,25 @@ export async function PATCH(
       .filter((p) => p.transferencia?.estado === 'PENDIENTE_VALIDACION')
       .reduce((s, p) => s + p.monto, 0);
 
-    const efectivoEsperado = caja.fondoInicial + totalEfectivo;
+    const totalEgresos = caja.gastos.filter((g) => g.tipo === 'EGRESO').reduce((s, g) => s + g.monto, 0);
+    const totalIngresos = caja.gastos.filter((g) => g.tipo === 'INGRESO').reduce((s, g) => s + g.monto, 0);
+    const totalEfectivoConGastos = totalEfectivo - totalEgresos + totalIngresos;
+
+    const efectivoEsperado = caja.fondoInicial + totalEfectivoConGastos;
     const diferencia = (efectivoFisico ?? efectivoEsperado) - efectivoEsperado;
 
     const cajaCerrada = await db.cierreCaja.update({
       where: { id: params.id },
       data: {
         estado: 'CERRADA',
-        totalEfectivo,
+        totalEfectivo: totalEfectivoConGastos,
         totalTarjeta,
         totalTransferencia,
         efectivoFisico: efectivoFisico ?? null,
         diferencia,
         notas: notas || null,
         cerradaEn: new Date(),
+        cerradoPorId: session?.userId ?? null,
       },
     });
 

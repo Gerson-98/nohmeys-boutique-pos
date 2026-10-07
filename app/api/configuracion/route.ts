@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/configuracion: público (sin restricción de rol), usado para mostrar
 // el nombre/branding de la tienda en login, sidebar, tickets y reportes.
 export async function GET() {

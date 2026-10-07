@@ -34,6 +34,7 @@ export function ProductModal({ open, onClose, onSuccess, productoId }: Props) {
           id: p.id,
           nombre: p.nombre,
           descripcion: p.descripcion,
+          marca: p.marca ?? null,
           imagenUrl: p.imagenUrl,
           categoriaId: p.categoriaId,
           costo: p.costo,
@@ -41,6 +42,7 @@ export function ProductModal({ open, onClose, onSuccess, productoId }: Props) {
           variantes: p.variantes.map((v: VarianteInput & { id: string }) => ({
             id: v.id,
             sku: v.sku,
+            codigoBarras: (v.codigoBarras as string) ?? '',
             talla: (v.talla as string) ?? '',
             color: (v.color as string) ?? '',
             colorHex: (v.colorHex as string) ?? '',
@@ -82,7 +84,7 @@ export function ProductModal({ open, onClose, onSuccess, productoId }: Props) {
         </DialogHeader>
 
         {/* Contenido scrollable */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5">
           {cargandoDatos ? (
             <div className="space-y-4 animate-pulse">
               <div className="h-32 rounded-xl bg-blush/20" />
