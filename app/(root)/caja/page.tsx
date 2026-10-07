@@ -774,7 +774,7 @@ export default function CajaPage() {
                 )}
               </div>
 
-              {/* Conteo de efectivo */}
+              {/* Arqueo de efectivo */}
               <div className="bg-boutique-white border border-blush rounded-xl p-4 space-y-1.5">
                 <h3 className="text-xs font-semibold text-boutique-dark mb-2">Arqueo de efectivo</h3>
                 <div className="flex justify-between text-sm">
@@ -815,29 +815,12 @@ export default function CajaPage() {
                 )}
               </div>
 
-              {/* Ganancia bruta (informativo) */}
-              <div className="bg-blush-light border border-gold-light rounded-xl p-4 space-y-1.5">
-                <h3 className="text-xs font-semibold text-boutique-dark mb-2">Ganancia del turno <span className="font-normal text-boutique-gray-mid">(informativo)</span></h3>
-                <div className="flex justify-between text-sm">
-                  <span className="text-boutique-gray-mid">Total facturado</span>
-                  <span className="font-mono">{formatPrecio(caja.resumen.totalVentas)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-boutique-gray-mid">Costo de productos vendidos</span>
-                  <span className="font-mono text-boutique-danger">-{formatPrecio(caja.resumen.costoTotal)}</span>
-                </div>
-                {caja.resumen.totalEgresos > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-boutique-gray-mid">Gastos de caja</span>
-                    <span className="font-mono text-boutique-danger">-{formatPrecio(caja.resumen.totalEgresos)}</span>
-                  </div>
-                )}
-                <div className="border-t border-gold-light pt-2 flex justify-between font-bold">
-                  <span className="text-sm text-boutique-dark">Ganancia bruta estimada</span>
-                  <span className={`font-mono text-base ${caja.resumen.gananciaBruta - caja.resumen.totalEgresos >= 0 ? 'text-boutique-success' : 'text-boutique-danger'}`}>
-                    {formatPrecio(caja.resumen.gananciaBruta - caja.resumen.totalEgresos)}
-                  </span>
-                </div>
+              {/* Ganancias (informativo) */}
+              <div className="flex items-center justify-between px-1">
+                <span className="text-sm font-semibold text-boutique-dark">Ganancias</span>
+                <span className={`font-mono font-bold text-base ${caja.resumen.gananciaBruta >= 0 ? 'text-boutique-success' : 'text-boutique-danger'}`}>
+                  {formatPrecio(caja.resumen.gananciaBruta)}
+                </span>
               </div>
 
               <div className="flex gap-3 pt-2">
